@@ -41,3 +41,15 @@ Important MSBuild properties:
 | `CrashReportFrameLimitPerThread` | `32` | Captures the intended compact crash report frame cap for self-reporting and future runtime configuration. |
 
 The landing page includes a runtime self-report so each run shows the requested runtime, detected runtime family, target framework, build configuration, and active vendor.
+
+## Sentry configuration
+
+The app includes the Sentry MAUI SDK and reads its settings from `src/Maui.Diagnostics.Playground/appsettings.json`, then overlays environment variables with the `MAUI_DIAGNOSTICS_` prefix. The committed appsettings file intentionally leaves `Sentry:Dsn` empty so no real DSN is stored in source control.
+
+Set the DSN at build/run time with an environment variable that maps to `Sentry:Dsn`:
+
+```bash
+export MAUI_DIAGNOSTICS_Sentry__Dsn="https://examplePublicKey@o0.ingest.sentry.io/0"
+```
+
+Use the landing page's "Send Sentry test" button to queue a verification message, logs, and metrics after the app starts.
