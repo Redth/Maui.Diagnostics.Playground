@@ -4,8 +4,13 @@
     <MauiDiagnosticsUseCoreClr Condition="'$(MauiDiagnosticsUseCoreClr)' == ''">true</MauiDiagnosticsUseCoreClr>
     <CrashVendor Condition="'$(CrashVendor)' == ''">None</CrashVendor>
     <CrashReportFrameLimitPerThread Condition="'$(CrashReportFrameLimitPerThread)' == ''">32</CrashReportFrameLimitPerThread>
+    <MauiDiagnosticsUseNativeProjects Condition="'$(MauiDiagnosticsUseNativeProjects)' == ''">true</MauiDiagnosticsUseNativeProjects>
     <UseMonoRuntime Condition="'$(MauiDiagnosticsUseCoreClr)' == 'true'">false</UseMonoRuntime>
     <UseMonoRuntime Condition="'$(MauiDiagnosticsUseCoreClr)' != 'true'">true</UseMonoRuntime>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MauiDiagnosticsUseNativeProjects)' == 'true'">
+    <DefineConstants>$(DefineConstants);MAUI_DIAGNOSTICS_NATIVE_PROJECTS</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(CrashVendor)' == 'None'">

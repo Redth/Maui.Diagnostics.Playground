@@ -22,6 +22,9 @@ mono_crash.*
 [Dd]ebugPublic/
 [Rr]elease/
 [Rr]eleases/
+native/android/.gradle/
+native/android/**/.cxx/
+native/android/**/build/
 
 [Dd]ebug/x64/
 [Dd]ebugPublic/x64/

@@ -17,6 +17,10 @@
       <_Parameter2>$(CrashReportFrameLimitPerThread)</_Parameter2>
     </AssemblyAttribute>
     <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>MauiDiagnosticsUseNativeProjects</_Parameter1>
+      <_Parameter2>$(MauiDiagnosticsUseNativeProjects)</_Parameter2>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
       <_Parameter1>RuntimeIdentifier</_Parameter1>
       <_Parameter2>$(RuntimeIdentifier)</_Parameter2>
     </AssemblyAttribute>

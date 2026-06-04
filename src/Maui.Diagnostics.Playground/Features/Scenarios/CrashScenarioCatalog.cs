@@ -70,7 +70,7 @@ public sealed class CrashScenarioCatalog : ICrashScenarioCatalog
         new(
             "native-apple-abort",
             "Apple native abort",
-            "Calls the platform C runtime abort function on iOS or Mac Catalyst to validate native-origin crash reporting.",
+            "Calls abort from the Xcode-built CrashNativeKit framework to validate native-origin crash reporting.",
             CrashScenarioCategory.Native,
             CrashScenarioPlatform.Apple,
             typeof(ScenarioDetailPage),
@@ -79,16 +79,25 @@ public sealed class CrashScenarioCatalog : ICrashScenarioCatalog
         new(
             "native-apple-sigsegv",
             "Apple native SIGSEGV",
-            "Raises SIGSEGV through the Apple platform C runtime to validate signal-origin crash reporting.",
+            "Faults inside the Xcode-built CrashNativeKit framework to validate Apple native symbolication.",
             CrashScenarioCategory.Native,
             CrashScenarioPlatform.Apple,
             typeof(ScenarioDetailPage),
             AppleNativeArtifacts,
             ["native", "apple", "sigsegv"]),
         new(
+            "native-apple-objc-exception",
+            "Apple Objective-C exception",
+            "Raises an uncaught NSException from the Xcode-built CrashNativeKit framework.",
+            CrashScenarioCategory.Native,
+            CrashScenarioPlatform.Apple,
+            typeof(ScenarioDetailPage),
+            AppleNativeArtifacts,
+            ["native", "apple", "objc", "exception"]),
+        new(
             "native-android-abort",
             "Android native abort",
-            "Calls Android libc abort to compare abort and SIGSEGV tombstone behavior.",
+            "Calls abort from the Gradle-built CrashNativeKit Android library to compare abort and SIGSEGV tombstone behavior.",
             CrashScenarioCategory.Native,
             CrashScenarioPlatform.Android,
             typeof(ScenarioDetailPage),
@@ -97,7 +106,7 @@ public sealed class CrashScenarioCatalog : ICrashScenarioCatalog
         new(
             "native-android-sigsegv",
             "Android native SIGSEGV",
-            "Raises SIGSEGV through Android libc to validate native-origin crash reporting and tombstone output.",
+            "Faults inside the Gradle-built CrashNativeKit Android library to validate native-origin crash reporting and tombstone output.",
             CrashScenarioCategory.Native,
             CrashScenarioPlatform.Android,
             typeof(ScenarioDetailPage),
@@ -106,7 +115,7 @@ public sealed class CrashScenarioCatalog : ICrashScenarioCatalog
         new(
             "native-illegal-instruction",
             "Native illegal instruction",
-            "Raises SIGILL through the platform C runtime to validate non-SEGV signal reporting.",
+            "Raises SIGILL from the project-backed native crash kit to validate non-SEGV signal reporting.",
             CrashScenarioCategory.Native,
             CrashScenarioPlatform.Mobile,
             typeof(ScenarioDetailPage),
@@ -115,7 +124,7 @@ public sealed class CrashScenarioCatalog : ICrashScenarioCatalog
         new(
             "native-background-thread",
             "Background native thread crash",
-            "Starts a named background thread and raises a native signal from that thread.",
+            "Starts a named native background thread and faults from that thread.",
             CrashScenarioCategory.Native,
             CrashScenarioPlatform.Mobile,
             typeof(ScenarioDetailPage),
@@ -124,7 +133,7 @@ public sealed class CrashScenarioCatalog : ICrashScenarioCatalog
         new(
             "mixed-managed-native",
             "Mixed managed/native stack",
-            "Bounces through managed and native frames before crashing so symbolication can validate interleaved stacks.",
+            "Bounces through managed frames into the project-backed native crash kit before faulting so symbolication can validate interleaved stacks.",
             CrashScenarioCategory.Native,
             CrashScenarioPlatform.Mobile,
             typeof(ScenarioDetailPage),

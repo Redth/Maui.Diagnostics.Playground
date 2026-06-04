@@ -15,6 +15,7 @@ public sealed class ManagedCrashScenarioRunner : ICrashScenarioRunner
         "runtime-stack-overflow",
         "native-apple-abort",
         "native-apple-sigsegv",
+        "native-apple-objc-exception",
         "native-android-abort",
         "native-android-sigsegv",
         "native-illegal-instruction",
@@ -43,6 +44,7 @@ public sealed class ManagedCrashScenarioRunner : ICrashScenarioRunner
             "runtime-stack-overflow" => OverflowStack(),
             "native-apple-abort" => NativeAbort(),
             "native-apple-sigsegv" => NativeSegmentationFault(),
+            "native-apple-objc-exception" => NativeObjectiveCException(),
             "native-android-abort" => NativeAbort(),
             "native-android-sigsegv" => NativeSegmentationFault(),
             "native-illegal-instruction" => NativeIllegalInstruction(),
@@ -140,6 +142,12 @@ public sealed class ManagedCrashScenarioRunner : ICrashScenarioRunner
     private static Task NativeIllegalInstruction()
     {
         NativeCrashInterop.RaiseIllegalInstruction();
+        return Task.CompletedTask;
+    }
+
+    private static Task NativeObjectiveCException()
+    {
+        NativeCrashInterop.RaiseObjectiveCException();
         return Task.CompletedTask;
     }
 

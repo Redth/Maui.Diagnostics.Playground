@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net11.0-ios;net11.0-maccatalyst</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>true</ImplicitUsings>
+    <IsBindingProject>true</IsBindingProject>
+    <IsTrimmable>true</IsTrimmable>
+    <NoWarn>$(NoWarn);NU1507</NoWarn>
+    <RestoreNoWarn>$(RestoreNoWarn);NU1507</RestoreNoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ObjcBindingApiDefinition Include="ApiDefinition.cs" />
+    <ObjcBindingCoreSource Include="StructsAndEnums.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <XcodeProject Include="../../native/apple/CrashNativeKit.xcodeproj">
+      <SchemeName>CrashNativeKit</SchemeName>
+      <ForceLoad>true</ForceLoad>
+      <SmartLink>false</SmartLink>
+    </XcodeProject>
+  </ItemGroup>
+</Project>

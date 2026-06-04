@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using Maui.Diagnostics.Playground.Features.Scenarios;
 
 namespace Maui.Diagnostics.Playground.Diagnostics;
 
@@ -13,6 +14,7 @@ public sealed class DiagnosticsSelfReportService : IDiagnosticsSelfReportService
         var configuration = assembly.GetCustomAttribute<AssemblyConfigurationAttribute>()?.Configuration ?? "Unknown";
         var useCoreClr = GetMetadata(assembly, "MauiDiagnosticsUseCoreClr", "true");
         var useMonoRuntime = GetMetadata(assembly, "UseMonoRuntime", "false");
+        var useNativeProjects = GetMetadata(assembly, "MauiDiagnosticsUseNativeProjects", "true");
         var runtimeIdentifier = GetMetadata(assembly, "RuntimeIdentifier", "Default");
         var frameLimit = GetMetadata(assembly, "CrashReportFrameLimitPerThread", "32");
         var targetFramework = assembly.GetCustomAttribute<TargetFrameworkAttribute>()?.FrameworkName
@@ -43,6 +45,8 @@ public sealed class DiagnosticsSelfReportService : IDiagnosticsSelfReportService
             new DiagnosticFact("Crash vendor", crashVendor),
             new DiagnosticFact("CoreCLR requested", useCoreClr),
             new DiagnosticFact("UseMonoRuntime", useMonoRuntime),
+            new DiagnosticFact("Native projects enabled", useNativeProjects),
+            new DiagnosticFact("Native crash kit", NativeCrashInterop.GetNativeKitDescription()),
             new DiagnosticFact("Compact frame cap", frameLimit)
         };
 

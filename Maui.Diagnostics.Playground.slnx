@@ -1,5 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Maui.Diagnostics.Playground/Maui.Diagnostics.Playground.csproj" />
+    <Project Path="src/Maui.Diagnostics.Playground.NativeAndroidBinding/Maui.Diagnostics.Playground.NativeAndroidBinding.csproj" />
+    <Project Path="src/Maui.Diagnostics.Playground.NativeAppleBinding/Maui.Diagnostics.Playground.NativeAppleBinding.csproj" />
   </Folder>
 </Solution>

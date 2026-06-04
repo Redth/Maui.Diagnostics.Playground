@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net11.0-android</TargetFramework>
+    <SupportedOSPlatformVersion>24</SupportedOSPlatformVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsTrimmable>true</IsTrimmable>
+    <NoWarn>$(NoWarn);NU1507</NoWarn>
+    <RestoreNoWarn>$(RestoreNoWarn);NU1507</RestoreNoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AndroidGradleProject Include="../../native/android/build.gradle.kts">
+      <ModuleName>crashnativekit</ModuleName>
+      <Bind>true</Bind>
+      <Pack>true</Pack>
+    </AndroidGradleProject>
+  </ItemGroup>
+</Project>
