@@ -63,6 +63,11 @@
                         FontSize="14"
                         TextColor="{AppThemeBinding Light=#475569, Dark=#CBD5E1}" />
                 </VerticalStackLayout>
+                <Button
+                    Grid.Column="1"
+                    Text="Send Sentry test"
+                    Command="{Binding SendSentryDiagnosticsCommand}"
+                    VerticalOptions="Center" />
             </Grid>
 
             <CollectionView
