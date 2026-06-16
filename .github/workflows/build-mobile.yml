@@ -151,7 +151,21 @@ jobs:
             printf '{\n  "Sentry": {\n    "Dsn": "%s",\n    "Debug": false\n  }\n}\n' "$SENTRY_DSN" > "$sentry_appsettings_path"
           fi
 
-          signing_args=()
+          publish_args=(
+            "$PROJECT_PATH"
+            -c Release
+            -f net11.0-android
+            --no-restore
+            -p:MauiDiagnosticsUseCoreClr=true
+            -p:MauiDiagnosticsUseNativeProjects=true
+            -p:CrashVendor=Sentry
+            -p:AndroidPackageFormat=aab
+            -p:ApplicationVersion="$version_code"
+            -p:ApplicationDisplayVersion="$version_name"
+            -p:PublishReadyToRun=false
+            -p:ContinuousIntegrationBuild=true
+          )
+
           if [ -n "${ANDROID_KEYSTORE_PATH:-}" ]; then
             missing_secrets=()
             [ -n "${ANDROID_KEY_ALIAS:-}" ] || missing_secrets+=("ANDROID_KEY_ALIAS")
@@ -163,7 +177,7 @@ jobs:
               exit 1
             fi
 
-            signing_args+=(
+            publish_args+=(
               -p:AndroidKeyStore=true
               -p:AndroidSigningKeyStore="$ANDROID_KEYSTORE_PATH"
               -p:AndroidSigningKeyAlias="$ANDROID_KEY_ALIAS"
@@ -172,9 +186,8 @@ jobs:
             )
           fi
 
-          sentry_args=()
           if [ -n "${SENTRY_AUTH_TOKEN:-}" ]; then
-            sentry_args+=(
+            publish_args+=(
               -p:SentryUploadSymbols=true
               -p:SentryUploadAndroidProGuardMapping=true
               -p:SentryCreateRelease=true
@@ -184,20 +197,7 @@ jobs:
             echo "::notice::SENTRY_AUTH_TOKEN is not configured; Sentry release and symbol uploads will be skipped."
           fi
 
-          dotnet publish "$PROJECT_PATH" \
-            -c Release \
-            -f net11.0-android \
-            --no-restore \
-            -p:MauiDiagnosticsUseCoreClr=true \
-            -p:MauiDiagnosticsUseNativeProjects=true \
-            -p:CrashVendor=Sentry \
-            -p:AndroidPackageFormat=aab \
-            -p:ApplicationVersion="$version_code" \
-            -p:ApplicationDisplayVersion="$version_name" \
-            -p:PublishReadyToRun=false \
-            -p:ContinuousIntegrationBuild=true \
-            "${signing_args[@]}" \
-            "${sentry_args[@]}"
+          dotnet publish "${publish_args[@]}"
 
       - name: Upload Android artifacts
         uses: actions/upload-artifact@v4
