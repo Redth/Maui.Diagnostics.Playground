@@ -21,7 +21,7 @@ Runner: [ManagedCrashScenarioRunner.cs](../../../../src/Maui.Diagnostics.Playgro
 | `native-background-thread` | Background native thread crash | Native | fault on named native thread | `Fatal signal`, tombstone naming the bg thread | native fault off the main thread |
 | `mixed-managed-native` | Mixed managed/native stack | Native | managed frames → native crash kit → fault | tombstone with interleaved managed + `libcrashnativekit.so` frames | managed stack references `NativeCrashInterop` |
 | `resource-memory-pressure` | Out-of-memory pressure | Resource | retain 64 MB chunks until termination | low-memory kill / `lmkd` / process death (often no tombstone) | `OutOfMemoryException` OR OS termination |
-| `resource-ui-hang` | UI thread hang | Resource | `Thread.Sleep(Infinite)` on UI thread | `ANR in dev.redth.maui.diagnostics.playground`, `Input dispatching timed out` | no managed exception expected |
+| `resource-ui-hang` | UI thread hang | Resource | `Thread.Sleep(Infinite)` on UI thread | `ANR in codes.redth.mauidiagnosticsgallery`, `Input dispatching timed out` | no managed exception expected |
 | `vendor-handled-exception` | Vendor handled exception | Vendor | catch + report, app keeps running | NO fatal block; app stays alive | handled `InvalidOperationException` logged; process survives |
 | `lifecycle-startup-crash` | Startup lifecycle crash | Lifecycle | arms a crash; **force-stop + relaunch** | FATAL EXCEPTION during startup before first page | managed exception during init |
 | `lifecycle-resume-crash` | Resume lifecycle crash | Lifecycle | arms a crash; **background + foreground** | FATAL EXCEPTION on resume callback | managed exception during resume |
@@ -29,7 +29,7 @@ Runner: [ManagedCrashScenarioRunner.cs](../../../../src/Maui.Diagnostics.Playgro
 ## Special handling
 
 - **`lifecycle-startup-crash`**: after triggering, the app shows an alert. Then
-  `adb shell am force-stop dev.redth.maui.diagnostics.playground` and relaunch. The crash
+  `adb shell am force-stop codes.redth.mauidiagnosticsgallery` and relaunch. The crash
   fires before the first Shell page and auto-clears the flag.
 - **`lifecycle-resume-crash`**: after triggering, send the app to background
   (`adb shell input keyevent KEYCODE_HOME`) then foreground it (relaunch the activity). The

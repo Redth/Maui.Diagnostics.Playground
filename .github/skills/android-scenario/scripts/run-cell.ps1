@@ -21,7 +21,7 @@ param(
   [Parameter(Mandatory)][ValidateSet('Debug','Release')][string]$Config,
   [Parameter(Mandatory)][string]$RunRoot,
   [string]$DotnetRoot = $env:DOTNET_ROOT,
-  [string]$Package = 'dev.redth.maui.diagnostics.playground'
+  [string]$Package = 'codes.redth.mauidiagnosticsgallery'
 )
 $ErrorActionPreference = 'Continue'
 if ($DotnetRoot) {

@@ -36,7 +36,7 @@ C# script, and produces a markdown report rating how good each crash is.
   Pass that confirmed value to the analyzer via `--detected-runtime <mono|coreclr>` (see step 5).
 - **Android scenario list** (what the gallery shows on Android) and each scenario's expected evidence live in [references/scenarios.md](./references/scenarios.md). There are 17 Android-visible scenarios.
 - Scenarios are tapped: gallery card (by Title) → "Trigger scenario" → confirm "Trigger" in the dialog.
-- App id: `dev.redth.maui.diagnostics.playground`.
+- App id: `codes.redth.mauidiagnosticsgallery`.
 
 ## Procedure
 
@@ -116,7 +116,7 @@ Key Facts). **Do not rely on the on-screen "Runtime family" chip** — it can be
    (`tombstone_<n>` / `/data/tombstones/tombstone_<n>`), it pulls that into the run folder as
    `tombstone-<key>-<name>`.
 6. Relaunch the app for the next scenario (the previous one terminated the process):
-   `adb shell am start -n dev.redth.maui.diagnostics.playground/crc64...MainActivity` or
+   `adb shell am start -n codes.redth.mauidiagnosticsgallery/crc64...MainActivity` or
    re-run, then wait for the gallery and navigate "Back to gallery" if needed.
 
 > Run terminating scenarios last within a cell where practical, and always relaunch

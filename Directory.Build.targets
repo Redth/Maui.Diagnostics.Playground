@@ -1,5 +1,6 @@
 <Project>
-  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Maui.Diagnostics.Playground'">
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Maui.Diagnostics.Playground' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+    <ApplicationId>codes.redth.mauidiagnosticsgallery</ApplicationId>
     <MauiDiagnosticsCrashReportName Condition="'$(MauiDiagnosticsCrashReportName)' == ''">/data/data/$(ApplicationId)/files/dotnet_crash_%p</MauiDiagnosticsCrashReportName>
   </PropertyGroup>
 

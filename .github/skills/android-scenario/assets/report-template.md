@@ -7,7 +7,7 @@
 
 - **Date**: {{date}}
 - **Device**: {{device model / api level}}
-- **App**: dev.redth.maui.diagnostics.playground
+- **App**: codes.redth.mauidiagnosticsgallery
 - **SDK**: {{dotnet --version}}
 - **Matrix cells**: MauiDiagnosticsUseCoreClr ∈ {false=Mono, true=CoreCLR} × Configuration ∈ {Debug, Release}
 

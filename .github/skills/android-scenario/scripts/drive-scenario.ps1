@@ -18,7 +18,7 @@
 .PARAMETER OutDir   Cell output directory; writes logcat-<key>.log and process-<key>.log.
 .PARAMETER Special  none | startup | resume (lifecycle scenarios need force-stop / home+resume).
 .PARAMETER SettleSeconds  Seconds to wait after triggering before capturing logcat.
-.PARAMETER Package  App id (default dev.redth.maui.diagnostics.playground).
+.PARAMETER Package  App id (default codes.redth.mauidiagnosticsgallery).
 .PARAMETER Activity Launch activity (default crc64...MainActivity for this app).
 #>
 param(
@@ -27,8 +27,8 @@ param(
   [Parameter(Mandatory)][string]$OutDir,
   [ValidateSet('none','startup','resume')][string]$Special = 'none',
   [int]$SettleSeconds = 3,
-  [string]$Package = 'dev.redth.maui.diagnostics.playground',
-  [string]$Activity = 'dev.redth.maui.diagnostics.playground/crc642843c7e8ee259013.MainActivity'
+  [string]$Package = 'codes.redth.mauidiagnosticsgallery',
+  [string]$Activity = 'codes.redth.mauidiagnosticsgallery/crc642843c7e8ee259013.MainActivity'
 )
 $ErrorActionPreference = 'Stop'
 $pkg = $Package
