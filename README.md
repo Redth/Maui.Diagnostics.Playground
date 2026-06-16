@@ -21,6 +21,12 @@ dotnet build src/Maui.Diagnostics.Playground/Maui.Diagnostics.Playground.csproj 
 dotnet build src/Maui.Diagnostics.Playground/Maui.Diagnostics.Playground.csproj -f net11.0-maccatalyst
 ```
 
+## Android Play Store builds
+
+The Android app id is `codes.redth.mauidiagnosticsgallery`, matching the Play Console package name. The mobile workflow publishes an Android App Bundle and signs it with the configured upload key secrets.
+
+Android versioning uses the GitHub Actions workflow run number as the default `versionCode`, with `versionName` defaulting to `1.0.<versionCode>`. For manual Play uploads, the workflow dispatch inputs `android_version_code` and `android_version_name` can override those values; `versionCode` must always increase for each Play upload.
+
 ## Runtime and vendor switches
 
 The repo defaults to CoreCLR-oriented testing:
