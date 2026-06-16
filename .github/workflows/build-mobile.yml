@@ -201,16 +201,16 @@ jobs:
           set -euo pipefail
 
           artifact_list="$RUNNER_TEMP/android-play-artifacts.txt"
-          find src/Maui.Diagnostics.Playground/bin/Release/net11.0-android -type f -name '*.aab' | sort > "$artifact_list"
+          find src/Maui.Diagnostics.Playground/bin/Release/net11.0-android/publish -type f -name '*-Signed.aab' | sort > "$artifact_list"
           artifact_count="$(wc -l < "$artifact_list" | tr -d ' ')"
 
           if [ "$artifact_count" -eq 0 ]; then
-            find src/Maui.Diagnostics.Playground/bin/Release/net11.0-android -type f -name '*.apk' | sort > "$artifact_list"
+            find src/Maui.Diagnostics.Playground/bin/Release/net11.0-android/publish -type f -name '*-Signed.apk' | sort > "$artifact_list"
             artifact_count="$(wc -l < "$artifact_list" | tr -d ' ')"
           fi
 
           if [ "$artifact_count" -ne 1 ]; then
-            printf '::error::Expected exactly one Android release artifact for Play upload, found %s.\n' "$artifact_count"
+            printf '::error::Expected exactly one signed Android publish artifact for Play upload, found %s.\n' "$artifact_count"
             sed 's/^/  /' "$artifact_list"
             exit 1
           fi
