@@ -28,6 +28,7 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: "1"
   DOTNET_NOLOGO: "true"
   PROJECT_PATH: src/Maui.Diagnostics.Playground/Maui.Diagnostics.Playground.csproj
+  ANDROID_PACKAGE_NAME: codes.redth.mauidiagnosticsgallery
 
 jobs:
   android:
@@ -91,12 +92,13 @@ jobs:
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           REQUIRE_ANDROID_STORE_SIGNING: ${{ github.event_name == 'workflow_dispatch' && inputs.require_android_store_signing }}
+          PUBLISH_ANDROID_TO_PLAY: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
         run: |
           set -euo pipefail
 
           if [ -z "${ANDROID_KEYSTORE_BASE64:-}" ]; then
-            if [ "${REQUIRE_ANDROID_STORE_SIGNING:-false}" = "true" ]; then
-              echo "::error::ANDROID_KEYSTORE_BASE64 is required when require_android_store_signing is true."
+            if [ "${REQUIRE_ANDROID_STORE_SIGNING:-false}" = "true" ] || [ "${PUBLISH_ANDROID_TO_PLAY:-false}" = "true" ]; then
+              echo "::error::ANDROID_KEYSTORE_BASE64 is required when Android store signing is required."
               exit 1
             fi
 
@@ -177,6 +179,55 @@ jobs:
           path: |
             src/Maui.Diagnostics.Playground/bin/Release/net11.0-android/**/*.apk
             src/Maui.Diagnostics.Playground/bin/Release/net11.0-android/**/*.aab
+
+      - name: Validate Play Console publishing
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON:-}" ]; then
+            echo "::error::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is required to publish Android releases to Play Console."
+            exit 1
+          fi
+
+      - name: Select Android release artifact
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        id: android_release_artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          artifact_list="$RUNNER_TEMP/android-play-artifacts.txt"
+          find src/Maui.Diagnostics.Playground/bin/Release/net11.0-android -type f -name '*.aab' | sort > "$artifact_list"
+          artifact_count="$(wc -l < "$artifact_list" | tr -d ' ')"
+
+          if [ "$artifact_count" -eq 0 ]; then
+            find src/Maui.Diagnostics.Playground/bin/Release/net11.0-android -type f -name '*.apk' | sort > "$artifact_list"
+            artifact_count="$(wc -l < "$artifact_list" | tr -d ' ')"
+          fi
+
+          if [ "$artifact_count" -ne 1 ]; then
+            printf '::error::Expected exactly one Android release artifact for Play upload, found %s.\n' "$artifact_count"
+            sed 's/^/  /' "$artifact_list"
+            exit 1
+          fi
+
+          artifact_path="$(sed -n '1p' "$artifact_list")"
+          echo "Selected Android release artifact: $artifact_path"
+          printf 'path=%s\n' "$artifact_path" >> "$GITHUB_OUTPUT"
+
+      - name: Publish Android to Play internal testing
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: ${{ env.ANDROID_PACKAGE_NAME }}
+          releaseFiles: ${{ steps.android_release_artifact.outputs.path }}
+          tracks: internal
+          status: completed
 
   ios:
     name: iOS Simulator Release

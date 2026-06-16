@@ -27,6 +27,18 @@ The Android app id is `codes.redth.mauidiagnosticsgallery`, matching the Play Co
 
 Android versioning uses the GitHub Actions workflow run number as the default `versionCode`, with `versionName` defaulting to `1.0.<versionCode>`. For manual Play uploads, the workflow dispatch inputs `android_version_code` and `android_version_name` can override those values; `versionCode` must always increase for each Play upload.
 
+Successful Android builds on `main` publish the generated AAB/APK to the Play Console `internal` testing track. Pull request builds only build and upload GitHub Actions artifacts.
+
+Configure these GitHub Actions secrets before publishing:
+
+| Secret | Purpose |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | Base64-encoded Android upload keystore. |
+| `ANDROID_KEY_ALIAS` | Alias for the upload key in the keystore. |
+| `ANDROID_KEY_PASSWORD` | Password for the upload key. |
+| `ANDROID_KEYSTORE_PASSWORD` | Password for the upload keystore. |
+| `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | Plain JSON key for a Google Play service account with permission to release `codes.redth.mauidiagnosticsgallery`. |
+
 ## Runtime and vendor switches
 
 The repo defaults to CoreCLR-oriented testing:
