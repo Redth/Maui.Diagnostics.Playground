@@ -1,7 +1,13 @@
 <Project>
   <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Maui.Diagnostics.Playground' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
     <ApplicationId>codes.redth.mauidiagnosticsgallery</ApplicationId>
+    <MauiDiagnosticsCrashReportName Condition="'$(MauiDiagnosticsCrashReportName)' == ''">/data/data/$(ApplicationId)/files/dotnet_crash_%p</MauiDiagnosticsCrashReportName>
   </PropertyGroup>
+
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'Maui.Diagnostics.Playground' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' and '$(MauiDiagnosticsUseCoreClr)' == 'true'">
+    <RuntimeEnvironmentVariable Include="DOTNET_EnableCrashReport" Value="1" />
+    <RuntimeEnvironmentVariable Include="DOTNET_DbgMiniDumpName" Value="$(MauiDiagnosticsCrashReportName)" />
+  </ItemGroup>
 
   <ItemGroup Condition="'$(MSBuildProjectName)' == 'Maui.Diagnostics.Playground'">
     <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
@@ -19,6 +25,10 @@
     <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
       <_Parameter1>CrashReportFrameLimitPerThread</_Parameter1>
       <_Parameter2>$(CrashReportFrameLimitPerThread)</_Parameter2>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>MauiDiagnosticsCrashReportName</_Parameter1>
+      <_Parameter2>$(MauiDiagnosticsCrashReportName)</_Parameter2>
     </AssemblyAttribute>
     <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
       <_Parameter1>MauiDiagnosticsUseNativeProjects</_Parameter1>

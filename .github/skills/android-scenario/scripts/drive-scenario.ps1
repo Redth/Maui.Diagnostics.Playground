@@ -18,7 +18,7 @@
 .PARAMETER OutDir   Cell output directory; writes logcat-<key>.log and process-<key>.log.
 .PARAMETER Special  none | startup | resume (lifecycle scenarios need force-stop / home+resume).
 .PARAMETER SettleSeconds  Seconds to wait after triggering before capturing logcat.
-.PARAMETER Package  App id (default dev.redth.maui.diagnostics.playground).
+.PARAMETER Package  App id (default codes.redth.mauidiagnosticsgallery).
 .PARAMETER Activity Launch activity (default crc64...MainActivity for this app).
 #>
 param(
@@ -27,8 +27,8 @@ param(
   [Parameter(Mandatory)][string]$OutDir,
   [ValidateSet('none','startup','resume')][string]$Special = 'none',
   [int]$SettleSeconds = 3,
-  [string]$Package = 'dev.redth.maui.diagnostics.playground',
-  [string]$Activity = 'dev.redth.maui.diagnostics.playground/crc642843c7e8ee259013.MainActivity'
+  [string]$Package = 'codes.redth.mauidiagnosticsgallery',
+  [string]$Activity = 'codes.redth.mauidiagnosticsgallery/crc642843c7e8ee259013.MainActivity'
 )
 $ErrorActionPreference = 'Stop'
 $pkg = $Package
@@ -58,6 +58,63 @@ function Get-Center([string]$xml, [string]$text, [switch]$exact) {
   return $null
 }
 function Tap($p) { adb shell input tap $p[0] $p[1] *> $null; Start-Sleep -Milliseconds 500 }
+function Clear-CrashReports {
+  adb shell "run-as $pkg sh -c 'rm -f files/*.crashreport.json files/.dotnet/crash-reports/*.crashreport.json files/.dotnet/crash-reports/*.tmp 2>/dev/null'" *> $null
+}
+function Save-CrashReports([string]$key, [string]$outDir) {
+  $reports = @()
+  $reports += adb shell run-as $pkg find files -maxdepth 1 -type f -name '*.crashreport.json' -print 2>$null
+  $reports += adb shell run-as $pkg find files/.dotnet/crash-reports -maxdepth 1 -type f -name '*.crashreport.json' -print 2>$null
+
+  foreach ($report in ($reports | Where-Object { $_ } | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' } | Select-Object -Unique)) {
+    $leaf = Split-Path $report -Leaf
+    $destination = Join-Path $outDir "crashreport-$key-$leaf"
+    $content = adb exec-out run-as $pkg cat $report 2>$null
+    if ($LASTEXITCODE -eq 0 -and $null -ne $content) {
+      $content | Set-Content $destination
+    } else {
+      Write-Warning "could not pull crash report '$report'"
+    }
+  }
+}
+function Save-Tombstones([string]$logcat, [string]$key, [string]$outDir) {
+  if (-not (Test-Path $logcat)) { return }
+
+  $paths = New-Object System.Collections.Generic.List[string]
+  foreach ($line in Get-Content $logcat) {
+    $written = [regex]::Match($line, 'Tombstone written to:\s*(\S+)')
+    if ($written.Success) {
+      $value = $written.Groups[1].Value.Trim()
+      if ($value -match '^tombstone_\d+') {
+        $paths.Add("/data/tombstones/$value")
+      } elseif ($value -match '^/') {
+        $paths.Add($value)
+      }
+    }
+
+    $copying = [regex]::Match($line, 'Copying\s+(/data/tombstones/\S+)\s+to DropBox')
+    if ($copying.Success) {
+      $paths.Add($copying.Groups[1].Value.Trim())
+    }
+  }
+
+  $i = 0
+  foreach ($path in ($paths | Select-Object -Unique)) {
+    $leaf = Split-Path $path -Leaf
+    $suffix = if ($i -eq 0) { $leaf } else { "$i-$leaf" }
+    $destination = Join-Path $outDir "tombstone-$key-$suffix"
+    $pull = adb pull $path $destination 2>&1
+    if ($LASTEXITCODE -ne 0) {
+      Write-Warning "could not pull tombstone '$path': $pull"
+    }
+    $i++
+  }
+}
+function Capture-Logcat([string]$logcat, [string]$key, [string]$outDir) {
+  adb logcat -d *> $logcat
+  Save-CrashReports $key $outDir
+  Save-Tombstones $logcat $key $outDir
+}
 function Relaunch-ToGallery {
   adb shell am force-stop $pkg *> $null
   Start-Sleep -Milliseconds 800
@@ -119,14 +176,16 @@ $proc   = "$OutDir/process-$Key.log"
 
 if ($Special -eq 'none') {
   if (-not (Relaunch-ToGallery)) { throw "gallery did not render" }
+  Clear-CrashReports
   adb logcat -c
   Open-Scenario
   Tap-Trigger
   Start-Sleep -Seconds $SettleSeconds
-  adb logcat -d *> $logcat
+  Capture-Logcat $logcat $Key $OutDir
 }
 elseif ($Special -eq 'startup') {
   if (-not (Relaunch-ToGallery)) { throw "gallery did not render" }
+  Clear-CrashReports
   Open-Scenario
   Tap-Trigger           # arms the startup crash
   Start-Sleep -Seconds 2
@@ -135,10 +194,11 @@ elseif ($Special -eq 'startup') {
   adb logcat -c
   adb shell am start -n $act *> $null   # should crash during startup
   Start-Sleep -Seconds 5
-  adb logcat -d *> $logcat
+  Capture-Logcat $logcat $Key $OutDir
 }
 elseif ($Special -eq 'resume') {
   if (-not (Relaunch-ToGallery)) { throw "gallery did not render" }
+  Clear-CrashReports
   Open-Scenario
   Tap-Trigger           # arms the resume crash
   Start-Sleep -Seconds 2
@@ -147,7 +207,7 @@ elseif ($Special -eq 'resume') {
   Start-Sleep -Seconds 2
   adb shell am start -n $act *> $null              # foreground -> crash on resume
   Start-Sleep -Seconds 5
-  adb logcat -d *> $logcat
+  Capture-Logcat $logcat $Key $OutDir
 }
 
 # Process-view: the managed/runtime slice of logcat (runtime self-report + managed tags).

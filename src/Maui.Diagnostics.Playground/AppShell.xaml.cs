@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Maui.Diagnostics.Playground.Features.DiagnosticsFiles;
 using Maui.Diagnostics.Playground.Features.Gallery;
 using Maui.Diagnostics.Playground.Features.Scenarios;
 
@@ -18,5 +19,7 @@ public partial class AppShell : Shell
 		});
 
 		Routing.RegisterRoute(ScenarioDetailPage.Route, typeof(ScenarioDetailPage));
+		Routing.RegisterRoute(DiagnosticsFilesPage.Route, typeof(DiagnosticsFilesPage));
+		Routing.RegisterRoute(DiagnosticsFileDetailPage.Route, typeof(DiagnosticsFileDetailPage));
 	}
 }

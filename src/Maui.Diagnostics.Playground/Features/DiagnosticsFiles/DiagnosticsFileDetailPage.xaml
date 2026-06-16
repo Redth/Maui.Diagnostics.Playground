@@ -1,0 +1,63 @@
+<ContentPage
+    x:Class="Maui.Diagnostics.Playground.Features.DiagnosticsFiles.DiagnosticsFileDetailPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Gray950}}"
+    Shell.TabBarIsVisible="False">
+
+    <Grid RowDefinitions="Auto,*" Padding="24,28,24,36" RowSpacing="18">
+        <VerticalStackLayout Spacing="14">
+            <Button
+                Text="Back to diagnostics files"
+                HorizontalOptions="Start"
+                Command="{Binding BackCommand}" />
+
+            <Border
+                Padding="20"
+                BackgroundColor="{AppThemeBinding Light=#F8FAFC, Dark=#1E293B}"
+                Stroke="{AppThemeBinding Light=#E2E8F0, Dark=#334155}"
+                StrokeShape="RoundRectangle 22">
+                <VerticalStackLayout Spacing="12">
+                    <Label
+                        Text="{Binding FileName}"
+                        FontAttributes="Bold"
+                        FontSize="24"
+                        LineBreakMode="WordWrap"
+                        TextColor="{AppThemeBinding Light=#0F172A, Dark=#F8FAFC}"
+                        SemanticProperties.HeadingLevel="Level1" />
+                    <Label
+                        Text="{Binding MetadataText}"
+                        FontSize="13"
+                        LineBreakMode="WordWrap"
+                        TextColor="{AppThemeBinding Light=#475569, Dark=#CBD5E1}" />
+                    <HorizontalStackLayout Spacing="12">
+                        <Button
+                            Text="Reload"
+                            Command="{Binding ReloadCommand}"
+                            IsEnabled="{Binding HasFile}" />
+                        <Button
+                            Text="Share"
+                            Command="{Binding ShareCommand}"
+                            IsEnabled="{Binding HasFile}" />
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+        </VerticalStackLayout>
+
+        <Border
+            Grid.Row="1"
+            Padding="14"
+            BackgroundColor="{AppThemeBinding Light=#0F172A, Dark=#020617}"
+            Stroke="{AppThemeBinding Light=#334155, Dark=#334155}"
+            StrokeShape="RoundRectangle 18">
+            <ScrollView Orientation="Vertical">
+                <Label
+                    Text="{Binding FileContent}"
+                    FontFamily="monospace"
+                    FontSize="12"
+                    LineBreakMode="WordWrap"
+                    TextColor="#E2E8F0" />
+            </ScrollView>
+        </Border>
+    </Grid>
+</ContentPage>

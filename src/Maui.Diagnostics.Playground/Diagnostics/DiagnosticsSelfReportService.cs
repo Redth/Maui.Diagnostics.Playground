@@ -17,6 +17,7 @@ public sealed class DiagnosticsSelfReportService : IDiagnosticsSelfReportService
         var useNativeProjects = GetMetadata(assembly, "MauiDiagnosticsUseNativeProjects", "true");
         var runtimeIdentifier = GetMetadata(assembly, "RuntimeIdentifier", "Default");
         var frameLimit = GetMetadata(assembly, "CrashReportFrameLimitPerThread", "32");
+        var crashReportName = GetMetadata(assembly, "MauiDiagnosticsCrashReportName", "Not configured");
         var targetFramework = assembly.GetCustomAttribute<TargetFrameworkAttribute>()?.FrameworkName
             ?? AppContext.TargetFrameworkName
             ?? "Unknown";
@@ -47,7 +48,8 @@ public sealed class DiagnosticsSelfReportService : IDiagnosticsSelfReportService
             new DiagnosticFact("UseMonoRuntime", useMonoRuntime),
             new DiagnosticFact("Native projects enabled", useNativeProjects),
             new DiagnosticFact("Native crash kit", NativeCrashInterop.GetNativeKitDescription()),
-            new DiagnosticFact("Compact frame cap", frameLimit)
+            new DiagnosticFact("Compact frame cap", frameLimit),
+            new DiagnosticFact("Crash report file pattern", EmptyFallback(crashReportName, "Not configured"))
         };
 
         return new DiagnosticsSummary(
