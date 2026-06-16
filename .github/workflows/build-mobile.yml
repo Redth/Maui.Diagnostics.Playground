@@ -38,6 +38,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
@@ -83,7 +85,7 @@ jobs:
           -p:TargetFramework=net11.0-android
           -p:MauiDiagnosticsUseCoreClr=true
           -p:MauiDiagnosticsUseNativeProjects=true
-          -p:CrashVendor=None
+          -p:CrashVendor=Sentry
           -p:AndroidPackageFormat=aab
           -p:PublishReadyToRun=false
 
@@ -118,6 +120,9 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_VERSION_CODE: ${{ inputs.android_version_code }}
           ANDROID_VERSION_NAME: ${{ inputs.android_version_name }}
+          PUBLISH_ANDROID_TO_PLAY: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
         run: |
           set -euo pipefail
 
@@ -135,6 +140,16 @@ jobs:
           fi
 
           echo "Android versionName=$version_name versionCode=$version_code"
+
+          if [ "${PUBLISH_ANDROID_TO_PLAY:-false}" = "true" ] && [ -z "${SENTRY_DSN:-}" ]; then
+            echo "::error::SENTRY_DSN is required to publish Android releases with Sentry enabled."
+            exit 1
+          fi
+
+          if [ -n "${SENTRY_DSN:-}" ]; then
+            sentry_appsettings_path="src/Maui.Diagnostics.Playground/appsettings.local.json"
+            printf '{\n  "Sentry": {\n    "Dsn": "%s",\n    "Debug": false\n  }\n}\n' "$SENTRY_DSN" > "$sentry_appsettings_path"
+          fi
 
           signing_args=()
           if [ -n "${ANDROID_KEYSTORE_PATH:-}" ]; then
@@ -157,19 +172,32 @@ jobs:
             )
           fi
 
+          sentry_args=()
+          if [ -n "${SENTRY_AUTH_TOKEN:-}" ]; then
+            sentry_args+=(
+              -p:SentryUploadSymbols=true
+              -p:SentryUploadAndroidProGuardMapping=true
+              -p:SentryCreateRelease=true
+              -p:SentrySetCommits=true
+            )
+          elif [ "${PUBLISH_ANDROID_TO_PLAY:-false}" = "true" ]; then
+            echo "::notice::SENTRY_AUTH_TOKEN is not configured; Sentry release and symbol uploads will be skipped."
+          fi
+
           dotnet publish "$PROJECT_PATH" \
             -c Release \
             -f net11.0-android \
             --no-restore \
             -p:MauiDiagnosticsUseCoreClr=true \
             -p:MauiDiagnosticsUseNativeProjects=true \
-            -p:CrashVendor=None \
+            -p:CrashVendor=Sentry \
             -p:AndroidPackageFormat=aab \
             -p:ApplicationVersion="$version_code" \
             -p:ApplicationDisplayVersion="$version_name" \
             -p:PublishReadyToRun=false \
             -p:ContinuousIntegrationBuild=true \
-            "${signing_args[@]}"
+            "${signing_args[@]}" \
+            "${sentry_args[@]}"
 
       - name: Upload Android artifacts
         uses: actions/upload-artifact@v4
