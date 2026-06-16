@@ -6,6 +6,12 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      require_android_store_signing:
+        description: Fail Android if upload-key signing secrets are not configured
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -63,18 +69,80 @@ jobs:
         run: dotnet workload restore "$PROJECT_PATH"
 
       - name: Restore Android app
-        run: dotnet restore "$PROJECT_PATH" -p:TargetFramework=net11.0-android
-
-      - name: Build Android app
         run: >
-          dotnet build "$PROJECT_PATH"
-          -c Release
-          -f net11.0-android
-          --no-restore
+          dotnet restore "$PROJECT_PATH"
+          -p:TargetFramework=net11.0-android
           -p:MauiDiagnosticsUseCoreClr=true
           -p:MauiDiagnosticsUseNativeProjects=true
           -p:CrashVendor=None
-          -p:ContinuousIntegrationBuild=true
+          -p:AndroidPackageFormat=aab
+          -p:PublishReadyToRun=false
+
+      - name: Prepare Android signing
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          REQUIRE_ANDROID_STORE_SIGNING: ${{ github.event_name == 'workflow_dispatch' && inputs.require_android_store_signing }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${ANDROID_KEYSTORE_BASE64:-}" ]; then
+            if [ "${REQUIRE_ANDROID_STORE_SIGNING:-false}" = "true" ]; then
+              echo "::error::ANDROID_KEYSTORE_BASE64 is required when require_android_store_signing is true."
+              exit 1
+            fi
+
+            echo "::warning::ANDROID_KEYSTORE_BASE64 is not configured; Android artifacts will not be signed with a store upload key."
+            exit 0
+          fi
+
+          keystore_path="$RUNNER_TEMP/android-upload.keystore"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore_path"
+          echo "ANDROID_KEYSTORE_PATH=$keystore_path" >> "$GITHUB_ENV"
+
+      - name: Publish Android app
+        shell: bash
+        env:
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          signing_args=()
+          if [ -n "${ANDROID_KEYSTORE_PATH:-}" ]; then
+            missing_secrets=()
+            [ -n "${ANDROID_KEY_ALIAS:-}" ] || missing_secrets+=("ANDROID_KEY_ALIAS")
+            [ -n "${ANDROID_KEY_PASSWORD:-}" ] || missing_secrets+=("ANDROID_KEY_PASSWORD")
+            [ -n "${ANDROID_KEYSTORE_PASSWORD:-}" ] || missing_secrets+=("ANDROID_KEYSTORE_PASSWORD")
+
+            if [ "${#missing_secrets[@]}" -gt 0 ]; then
+              printf '::error::Missing Android signing secret(s): %s\n' "${missing_secrets[*]}"
+              exit 1
+            fi
+
+            signing_args+=(
+              -p:AndroidKeyStore=true
+              -p:AndroidSigningKeyStore="$ANDROID_KEYSTORE_PATH"
+              -p:AndroidSigningKeyAlias="$ANDROID_KEY_ALIAS"
+              -p:AndroidSigningKeyPass="$ANDROID_KEY_PASSWORD"
+              -p:AndroidSigningStorePass="$ANDROID_KEYSTORE_PASSWORD"
+            )
+          fi
+
+          dotnet publish "$PROJECT_PATH" \
+            -c Release \
+            -f net11.0-android \
+            --no-restore \
+            -p:MauiDiagnosticsUseCoreClr=true \
+            -p:MauiDiagnosticsUseNativeProjects=true \
+            -p:CrashVendor=None \
+            -p:AndroidPackageFormat=aab \
+            -p:ApplicationVersion=${{ github.run_number }} \
+            -p:ApplicationDisplayVersion=1.0.${{ github.run_number }} \
+            -p:PublishReadyToRun=false \
+            -p:ContinuousIntegrationBuild=true \
+            "${signing_args[@]}"
 
       - name: Upload Android artifacts
         uses: actions/upload-artifact@v4
