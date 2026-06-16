@@ -1,6 +1,7 @@
 ﻿using System.Globalization;
 using System.Reflection;
 using Maui.Diagnostics.Playground.Diagnostics;
+using Maui.Diagnostics.Playground.Features.DiagnosticsFiles;
 using Maui.Diagnostics.Playground.Features.Gallery;
 using Maui.Diagnostics.Playground.Features.Scenarios;
 using Microsoft.Extensions.Configuration;
@@ -42,9 +43,12 @@ public static class MauiProgram
 		builder.Services.AddSingleton<AppShell>();
 		builder.Services.AddSingleton<ICrashScenarioCatalog, CrashScenarioCatalog>();
 		builder.Services.AddSingleton<ICrashScenarioRunner, ManagedCrashScenarioRunner>();
+		builder.Services.AddSingleton<IDiagnosticsArtifactService, DiagnosticsArtifactService>();
 		builder.Services.AddSingleton<IDiagnosticsSelfReportService, DiagnosticsSelfReportService>();
 		builder.Services.AddTransient<GalleryViewModel>();
 		builder.Services.AddTransient<MainPage>();
+		builder.Services.AddTransient<DiagnosticsFilesPage>();
+		builder.Services.AddTransient<DiagnosticsFileDetailPage>();
 		builder.Services.AddTransient<ScenarioDetailPage>();
 
 		return builder.Build();

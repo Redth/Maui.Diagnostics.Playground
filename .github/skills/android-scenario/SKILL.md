@@ -110,7 +110,11 @@ Key Facts). **Do not rely on the on-screen "Runtime family" chip** — it can be
    on-screen instruction: force-stop + relaunch, or background + foreground. See the
    reference for the exact gesture.
 5. Capture: `adb logcat -d > logcat-<key>.log` (and snapshot the tail of the process log
-   that corresponds to this scenario into `process-<key>.log`).
+   that corresponds to this scenario into `process-<key>.log`). `drive-scenario.ps1`
+   also attempts to pull Android CoreCLR in-proc JSON crash reports as
+   `crashreport-<key>-*.crashreport.json`. When logcat names a system tombstone
+   (`tombstone_<n>` / `/data/tombstones/tombstone_<n>`), it pulls that into the run folder as
+   `tombstone-<key>-<name>`.
 6. Relaunch the app for the next scenario (the previous one terminated the process):
    `adb shell am start -n dev.redth.maui.diagnostics.playground/crc64...MainActivity` or
    re-run, then wait for the gallery and navigate "Back to gallery" if needed.
@@ -147,8 +151,8 @@ Aggregate all `verdict-*.json` into one markdown report using
   "no tombstone for SIGABRT under Mono/Debug").
 
 Write the report to the repository root as `android-scenario.md` (overwrite on each run).
-Keep the raw per-scenario artifacts (`process-*.log`, `logcat-*.log`, `verdict-*.json`) in
-the run folder for reference.
+Keep the raw per-scenario artifacts (`process-*.log`, `logcat-*.log`, `verdict-*.json`,
+and any `crashreport-*` / `tombstone-*` files) in the run folder for reference.
 
 ## Notes
 - Drive the UI with [scripts/drive-scenario.ps1](./scripts/drive-scenario.ps1) (text-based

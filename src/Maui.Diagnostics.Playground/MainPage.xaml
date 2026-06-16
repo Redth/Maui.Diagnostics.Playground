@@ -63,12 +63,18 @@
                         FontSize="14"
                         TextColor="{AppThemeBinding Light=#475569, Dark=#CBD5E1}" />
                 </VerticalStackLayout>
-                <Button
+                <HorizontalStackLayout
                     Grid.Column="1"
-                    Text="Send Sentry test"
-                    Command="{Binding SendSentryDiagnosticsCommand}"
-                    IsVisible="{Binding IsSentryEnabled}"
-                    VerticalOptions="Center" />
+                    Spacing="10"
+                    VerticalOptions="Center">
+                    <Button
+                        Text="Diagnostics files"
+                        Command="{Binding OpenDiagnosticsFilesCommand}" />
+                    <Button
+                        Text="Send Sentry test"
+                        Command="{Binding SendSentryDiagnosticsCommand}"
+                        IsVisible="{Binding IsSentryEnabled}" />
+                </HorizontalStackLayout>
             </Grid>
 
             <CollectionView

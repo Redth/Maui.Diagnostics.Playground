@@ -39,8 +39,11 @@ Important MSBuild properties:
 | `MauiDiagnosticsUseCoreClr` | `true` | Requests the CoreCLR mobile runtime path. Set to `false` for Mono comparison runs. |
 | `CrashVendor` | `None` | Selects the active crash-reporting vendor integration. Initial values are `None`, `Sentry`, `Raygun`, `NewRelic`, `Bugsee`, `Firebase`, `AppCenterLegacy`, and `NativePrototype`. |
 | `CrashReportFrameLimitPerThread` | `32` | Captures the intended compact crash report frame cap for self-reporting and future runtime configuration. |
+| `MauiDiagnosticsCrashReportName` | `/data/data/<app-id>/files/dotnet_crash_%p` | Android CoreCLR in-proc crash report file template. The runtime appends `.crashreport.json` when `DOTNET_EnableCrashReport=1`. |
 
-The landing page includes a runtime self-report so each run shows the requested runtime, detected runtime family, target framework, build configuration, and active vendor.
+The landing page includes a runtime self-report so each run shows the requested runtime, detected runtime family, target framework, build configuration, and active vendor. Use **Diagnostics files** to list app-private crash artifacts, view their text payloads, and share them from the device.
+
+On Android, the .NET SDK enables `System.Runtime.CrashReportBeforeSignalChaining` for CoreCLR by default, so the runtime emits its compact crash report to `logcat` before Android's signal handler writes the tombstone. Android CoreCLR's in-proc JSON crash reporter is opt-in; this project packages `DOTNET_EnableCrashReport=1` and `DOTNET_DbgMiniDumpName=$(MauiDiagnosticsCrashReportName)` into the app's Android environment. Native crash files are Android system tombstones under `/data/tombstones` and may be copied into DropBox; do not expect an app-private `.dmp` file unless the Android runtime explicitly ships and enables a dump writer.
 
 ## Sentry configuration
 

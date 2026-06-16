@@ -1,5 +1,6 @@
 using System.Windows.Input;
 using Maui.Diagnostics.Playground.Diagnostics;
+using Maui.Diagnostics.Playground.Features.DiagnosticsFiles;
 using Maui.Diagnostics.Playground.Features.Scenarios;
 #if CRASH_VENDOR_SENTRY
 using Sentry;
@@ -20,6 +21,7 @@ public sealed class GalleryViewModel
             .ToArray();
         Summary = diagnosticsSelfReportService.GetSummary();
         OpenScenarioCommand = new Command<CrashScenarioDescriptor>(OpenScenario);
+        OpenDiagnosticsFilesCommand = new Command(OpenDiagnosticsFiles);
 #if CRASH_VENDOR_SENTRY
         SendSentryDiagnosticsCommand = new Command(SendSentryDiagnostics);
 #else
@@ -32,6 +34,8 @@ public sealed class GalleryViewModel
     public DiagnosticsSummary Summary { get; }
 
     public ICommand OpenScenarioCommand { get; }
+
+    public ICommand OpenDiagnosticsFilesCommand { get; }
 
     public ICommand SendSentryDiagnosticsCommand { get; }
 
@@ -55,6 +59,11 @@ public sealed class GalleryViewModel
         {
             { "scenarioKey", scenario.Key }
         });
+    }
+
+    private static async void OpenDiagnosticsFiles()
+    {
+        await Shell.Current.GoToAsync(DiagnosticsFilesPage.Route);
     }
 
 #if CRASH_VENDOR_SENTRY
