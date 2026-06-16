@@ -38,6 +38,8 @@ Configure these GitHub Actions secrets before publishing:
 | `ANDROID_KEY_PASSWORD` | Password for the upload key. |
 | `ANDROID_KEYSTORE_PASSWORD` | Password for the upload keystore. |
 | `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | Plain JSON key for a Google Play service account with permission to release `codes.redth.mauidiagnosticsgallery`. |
+| `SENTRY_DSN` | DSN embedded into Play Store release builds so the Sentry MAUI SDK can send events. |
+| `SENTRY_AUTH_TOKEN` | Optional Sentry token used to create releases, set commits, and upload Android debug symbols/mapping files. |
 
 ## Runtime and vendor switches
 
@@ -56,6 +58,8 @@ Important MSBuild properties:
 | --- | --- | --- |
 | `MauiDiagnosticsUseCoreClr` | `true` | Requests the CoreCLR mobile runtime path. Set to `false` for Mono comparison runs. |
 | `CrashVendor` | `None` | Selects the active crash-reporting vendor integration. Initial values are `None`, `Sentry`, `Raygun`, `NewRelic`, `Bugsee`, `Firebase`, `AppCenterLegacy`, and `NativePrototype`. |
+| `SentryOrg` | `dotnet-maui` | Sentry organization used by the Sentry MSBuild/CLI integration. |
+| `SentryProject` | `maui-diagnostics-playground` | Sentry project used by the Sentry MSBuild/CLI integration. |
 | `CrashReportFrameLimitPerThread` | `32` | Captures the intended compact crash report frame cap for self-reporting and future runtime configuration. |
 | `MauiDiagnosticsCrashReportName` | `/data/data/<app-id>/files/dotnet_crash_%p` | Android CoreCLR in-proc crash report file template. The runtime appends `.crashreport.json` when `DOTNET_EnableCrashReport=1`. |
 
@@ -65,7 +69,9 @@ On Android, the .NET SDK enables `System.Runtime.CrashReportBeforeSignalChaining
 
 ## Sentry configuration
 
-The app includes the Sentry MAUI SDK and reads its settings from `src/Maui.Diagnostics.Playground/appsettings.json`, then overlays environment variables with the `MAUI_DIAGNOSTICS_` prefix. The committed appsettings file intentionally leaves `Sentry:Dsn` empty so no real DSN is stored in source control.
+The app includes the Sentry MAUI SDK and reads its settings from `src/Maui.Diagnostics.Playground/appsettings.json`, then overlays ignored `appsettings.local.json` and environment variables with the `MAUI_DIAGNOSTICS_` prefix. The committed appsettings file intentionally leaves `Sentry:Dsn` empty so no real DSN is stored in source control.
+
+Android Play Store builds compile with `CrashVendor=Sentry`; on `main`, the workflow requires the `SENTRY_DSN` secret and writes it to an ignored `appsettings.local.json` before publishing. If `SENTRY_AUTH_TOKEN` is configured, the same build also asks Sentry's MSBuild integration to create the release, set commits, and upload Android symbols/mapping files to `dotnet-maui/maui-diagnostics-playground`.
 
 Set the DSN at build/run time with an environment variable that maps to `Sentry:Dsn`:
 
