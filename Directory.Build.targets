@@ -1,4 +1,8 @@
 <Project>
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Maui.Diagnostics.Playground' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+    <ApplicationId>codes.redth.mauidiagnosticsgallery</ApplicationId>
+  </PropertyGroup>
+
   <ItemGroup Condition="'$(MSBuildProjectName)' == 'Maui.Diagnostics.Playground'">
     <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
       <_Parameter1>MauiDiagnosticsUseCoreClr</_Parameter1>
