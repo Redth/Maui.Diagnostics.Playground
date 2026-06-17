@@ -195,6 +195,7 @@ public sealed class CrashScenarioCatalog : ICrashScenarioCatalog
     private static readonly string[] CommonManagedArtifacts =
     [
         "Runtime compact report when CoreCLR crash reporting is configured",
+        "App-private CoreCLR JSON crash report when file output is configured",
         "Platform crash log or process termination record",
         "Active vendor event when vendor handlers are enabled"
     ];
@@ -202,6 +203,7 @@ public sealed class CrashScenarioCatalog : ICrashScenarioCatalog
     private static readonly string[] CommonRuntimeArtifacts =
     [
         "CoreCLR compact report with managed/native frames",
+        "CoreCLR JSON crash report: dotnet_crash_* on net11p5, report-* under .dotnet/crash-reports on net11p6+",
         "Module table with runtime module identifiers",
         "Platform crash log or tombstone"
     ];
@@ -210,6 +212,7 @@ public sealed class CrashScenarioCatalog : ICrashScenarioCatalog
     [
         "Platform crash log or tombstone",
         "Runtime compact report when CoreCLR observes the native signal",
+        "App-private CoreCLR JSON crash report when the runtime observes the signal",
         "Native signal and thread details"
     ];
 
@@ -224,6 +227,7 @@ public sealed class CrashScenarioCatalog : ICrashScenarioCatalog
     [
         "Android tombstone or logcat fatal signal block",
         "DOTNET_CRASH logcat block when CoreCLR report is available",
+        "CoreCLR JSON crash report file when file output is configured",
         "ELF BuildIds for runtime and native crash kit libraries"
     ];
 }

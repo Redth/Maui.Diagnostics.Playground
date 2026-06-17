@@ -2,11 +2,15 @@
   <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Maui.Diagnostics.Playground' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
     <ApplicationId>codes.redth.mauidiagnosticsgallery</ApplicationId>
     <MauiDiagnosticsCrashReportName Condition="'$(MauiDiagnosticsCrashReportName)' == ''">/data/data/$(ApplicationId)/files/dotnet_crash_%p</MauiDiagnosticsCrashReportName>
+    <MauiDiagnosticsCrashReportRootPath Condition="'$(MauiDiagnosticsCrashReportRootPath)' == ''">/data/data/$(ApplicationId)/files</MauiDiagnosticsCrashReportRootPath>
+    <MauiDiagnosticsCrashReportMaxFileCount Condition="'$(MauiDiagnosticsCrashReportMaxFileCount)' == ''">32</MauiDiagnosticsCrashReportMaxFileCount>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(MSBuildProjectName)' == 'Maui.Diagnostics.Playground' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' and '$(MauiDiagnosticsUseCoreClr)' == 'true'">
     <RuntimeEnvironmentVariable Include="DOTNET_EnableCrashReport" Value="1" />
     <RuntimeEnvironmentVariable Include="DOTNET_DbgMiniDumpName" Value="$(MauiDiagnosticsCrashReportName)" />
+    <RuntimeEnvironmentVariable Include="DOTNET_CrashReportRootPath" Value="$(MauiDiagnosticsCrashReportRootPath)" Condition="'$(MauiDiagnosticsCrashReportRootPath)' != ''" />
+    <RuntimeEnvironmentVariable Include="DOTNET_CrashReportMaxFileCount" Value="$(MauiDiagnosticsCrashReportMaxFileCount)" Condition="'$(MauiDiagnosticsCrashReportMaxFileCount)' != ''" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(MSBuildProjectName)' == 'Maui.Diagnostics.Playground'">
@@ -29,6 +33,14 @@
     <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
       <_Parameter1>MauiDiagnosticsCrashReportName</_Parameter1>
       <_Parameter2>$(MauiDiagnosticsCrashReportName)</_Parameter2>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>MauiDiagnosticsCrashReportRootPath</_Parameter1>
+      <_Parameter2>$(MauiDiagnosticsCrashReportRootPath)</_Parameter2>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>MauiDiagnosticsCrashReportMaxFileCount</_Parameter1>
+      <_Parameter2>$(MauiDiagnosticsCrashReportMaxFileCount)</_Parameter2>
     </AssemblyAttribute>
     <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
       <_Parameter1>MauiDiagnosticsUseNativeProjects</_Parameter1>

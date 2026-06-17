@@ -12,8 +12,8 @@ Runner: [ManagedCrashScenarioRunner.cs](../../../../src/Maui.Diagnostics.Playgro
 | `managed-background-unhandled` | Background thread exception | Managed | `throw` on background `Thread` | FATAL EXCEPTION on worker thread; process dies | `InvalidOperationException` from `CrashGallery.UnhandledBackground` |
 | `managed-async-void` | Async void exception | Managed | `throw` after `await` in `async void` | FATAL EXCEPTION via `ThrowAsync`; process dies | `InvalidOperationException` async continuation |
 | `runtime-null-reference` | NullReferenceException | Runtime | deref null (no-inline frame) | FATAL EXCEPTION; process dies | `NullReferenceException` with known root cause |
-| `runtime-access-violation` | Access violation | Runtime | invalid native write (SIGSEGV) | `Fatal signal 11 (SIGSEGV)`, tombstone, backtrace | CoreCLR may emit compact report; Mono native fault |
-| `runtime-failfast` | Environment.FailFast | Runtime | `Environment.FailFast` | `Fatal signal 6 (SIGABRT)`, tombstone | CoreCLR compact report w/ managed frames; process dies |
+| `runtime-access-violation` | Access violation | Runtime | invalid native write (SIGSEGV) | `Fatal signal 11 (SIGSEGV)`, tombstone, backtrace | CoreCLR may emit compact report plus app-private JSON; Mono native fault |
+| `runtime-failfast` | Environment.FailFast | Runtime | `Environment.FailFast` | `Fatal signal 6 (SIGABRT)`, tombstone | CoreCLR compact report w/ managed frames and app-private JSON when configured; process dies |
 | `runtime-stack-overflow` | Stack overflow | Runtime | infinite recursion | `Fatal signal` (SIGSEGV) + tombstone; possibly SO message | stack overflow termination |
 | `native-android-abort` | Android native abort | Native | `crash_native_abort` in `libcrashnativekit.so` | `Fatal signal 6 (SIGABRT)`, tombstone w/ `libcrashnativekit.so` + `libmonosgen`/`libcoreclr` frames, BuildIds | native abort, no managed exception |
 | `native-android-sigsegv` | Android native SIGSEGV | Native | `crash_native_sigsegv` | `Fatal signal 11 (SIGSEGV)`, tombstone, BuildIds | native fault |
@@ -48,3 +48,16 @@ Runner: [ManagedCrashScenarioRunner.cs](../../../../src/Maui.Diagnostics.Playgro
 
 The landing-page self-report ("Runtime family" fact) is the ground truth for what actually
 loaded; always compare it to the requested matrix value.
+
+## App-private CoreCLR JSON reports
+
+When the harness captures app-private artifacts, pass the artifact directory to
+`analyze-crash.cs` with `--artifacts <dir>`. The analyzer recognizes both output
+generations:
+
+- net11p5-era `dotnet_crash_<pid>.crashreport.json` files in the app data root.
+- net11p6+ lifecycle-managed `report-<timestampNs>-<pid>.crashreport.json` files
+  under `.dotnet/crash-reports/`.
+
+Current net11p5 runs should keep producing the first form. net11p6+ runs should
+produce the lifecycle-managed form and respect `DOTNET_CrashReportMaxFileCount`.
