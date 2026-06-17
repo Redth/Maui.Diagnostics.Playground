@@ -150,8 +150,8 @@ public sealed class DiagnosticsArtifactService : IDiagnosticsArtifactService
     {
         return
         [
-            new DiagnosticsRoot("App data", FileSystem.Current.AppDataDirectory),
             new DiagnosticsRoot(".NET crash reports", Path.Combine(FileSystem.Current.AppDataDirectory, ".dotnet", "crash-reports")),
+            new DiagnosticsRoot("App data", FileSystem.Current.AppDataDirectory),
             new DiagnosticsRoot("Cache", FileSystem.Current.CacheDirectory)
         ];
     }

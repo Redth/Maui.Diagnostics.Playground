@@ -3,7 +3,8 @@
 //
 // Run as a file-based app:
 //   dotnet run analyze-crash.cs -- --scenario <key> --runtime <mono|coreclr> \
-//       --config <Debug|Release> --process process.log --logcat logcat.log --out verdict.json
+//       --config <Debug|Release> --process process.log --logcat logcat.log --out verdict.json \
+//       [--artifacts <dir>]
 //
 // It parses the process console output and the adb logcat capture, classifies the crash,
 // checks the expected-artifact matrix for the scenario, scores the crash quality, and
@@ -23,14 +24,15 @@ if (opts is null)
 
 string processText = ReadIfExists(opts.ProcessPath);
 string logcatText = ReadIfExists(opts.LogcatPath);
+string artifactIndexText = ReadArtifactIndex(opts.ArtifactsPath);
 
-if (processText.Length == 0 && logcatText.Length == 0)
+if (processText.Length == 0 && logcatText.Length == 0 && artifactIndexText.Length == 0)
 {
-    Console.Error.WriteLine("error: neither --process nor --logcat produced any content.");
+    Console.Error.WriteLine("error: --process, --logcat, and --artifacts produced no content.");
     return 2;
 }
 
-var signals = DetectSignals(processText, logcatText, opts.DetectedRuntime);
+var signals = DetectSignals(processText, logcatText, artifactIndexText, opts.DetectedRuntime);
 var expected = ExpectedFor(opts.Scenario);
 var checks = Evaluate(expected, signals, opts);
 var (grade, score, maxScore) = Grade(checks);
@@ -85,6 +87,7 @@ static Options? ParseArgs(string[] args)
         Config = map.GetValueOrDefault("config", "Unknown"),
         ProcessPath = map.GetValueOrDefault("process", ""),
         LogcatPath = map.GetValueOrDefault("logcat", ""),
+        ArtifactsPath = map.GetValueOrDefault("artifacts", ""),
         OutPath = map.GetValueOrDefault("out", ""),
         // Optional ground-truth runtime (e.g. from nativeloader logcat / APK lib inspection),
         // since both runtimes ship libmonodroid.so and the on-device chip is unreliable.
@@ -107,14 +110,40 @@ static void PrintUsage()
     => Console.Error.WriteLine(
         "usage: dotnet run analyze-crash.cs -- --scenario <key> --runtime <mono|coreclr> " +
         "--config <Debug|Release> --process <file> --logcat <file> [--out <file>] " +
-        "[--detected-runtime <mono|coreclr>]");
+        "[--artifacts <dir-or-file>] [--detected-runtime <mono|coreclr>]");
 
 static string ReadIfExists(string path)
     => (!string.IsNullOrEmpty(path) && File.Exists(path)) ? File.ReadAllText(path) : "";
 
-static Signals DetectSignals(string proc, string logcat, string groundTruthRuntime)
+static string ReadArtifactIndex(string path)
 {
-    string all = proc + "\n" + logcat;
+    if (string.IsNullOrEmpty(path))
+    {
+        return "";
+    }
+
+    if (File.Exists(path))
+    {
+        return File.ReadAllText(path);
+    }
+
+    if (!Directory.Exists(path))
+    {
+        return "";
+    }
+
+    var builder = new StringBuilder();
+    foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+    {
+        builder.AppendLine(file);
+    }
+
+    return builder.ToString();
+}
+
+static Signals DetectSignals(string proc, string logcat, string artifacts, string groundTruthRuntime)
+{
+    string all = proc + "\n" + logcat + "\n" + artifacts;
 
     // Native fatal signal block from libc, e.g.:
     // F libc : Fatal signal 6 (SIGABRT), code -1 ...
@@ -132,6 +161,8 @@ static Signals DetectSignals(string proc, string logcat, string groundTruthRunti
     bool androidFatalException = all.Contains("FATAL EXCEPTION");
     bool monoDroidUnhandled = all.Contains("MonoDroid: UNHANDLED EXCEPTION") || all.Contains("UNHANDLED EXCEPTION");
     bool dotnetCrashReport = Regex.IsMatch(all, @"createdump|Writing (mini)?dump|DOTNET.*crash|Triage buffer|compact (crash )?report", RegexOptions.IgnoreCase);
+    bool legacyCrashReportFile = Regex.IsMatch(all, @"dotnet_crash_[^\s/\\]*\.crashreport\.json", RegexOptions.IgnoreCase);
+    bool lifecycleCrashReportFile = Regex.IsMatch(all, @"report-\d+-\d+\.crashreport\.json", RegexOptions.IgnoreCase);
 
     // Managed stack referencing the scenario runner (good fidelity signal).
     bool managedStackHasRunner = Regex.IsMatch(all, @"ManagedCrashScenarioRunner|NativeCrashInterop|ScenarioDetailPage", RegexOptions.IgnoreCase);
@@ -169,6 +200,8 @@ static Signals DetectSignals(string proc, string logcat, string groundTruthRunti
         AndroidFatalException = androidFatalException,
         MonoDroidUnhandled = monoDroidUnhandled,
         DotnetCrashReport = dotnetCrashReport,
+        LegacyCrashReportFile = legacyCrashReportFile,
+        LifecycleCrashReportFile = lifecycleCrashReportFile,
         ManagedStackHasRunner = managedStackHasRunner,
         ManagedExceptionType = managedExceptionType,
         CrashNativeKit = crashNativeKit,
@@ -264,7 +297,18 @@ static List<Check> Evaluate(Expected exp, Signals s, Options o)
 
     // CoreCLR is expected to add a managed-frame compact report on fatal native/runtime crashes.
     if (o.Runtime == "coreclr" && (exp.WantNativeSignal || exp.Category.StartsWith("Runtime")))
+    {
         Add("coreclr-compact-report", s.DotnetCrashReport, required: false, "DOTNET crash/compact report observed");
+        if (!string.IsNullOrEmpty(o.ArtifactsPath))
+        {
+            string detail = s.LifecycleCrashReportFile
+                ? "lifecycle-managed report-*.crashreport.json observed"
+                : s.LegacyCrashReportFile
+                    ? "legacy dotnet_crash_*.crashreport.json observed"
+                    : "no app-private CoreCLR JSON report observed";
+            Add("coreclr-json-report-file", s.LegacyCrashReportFile || s.LifecycleCrashReportFile, required: false, detail);
+        }
+    }
 
     return checks;
 }
@@ -310,6 +354,8 @@ static string[] BuildNotes(Expected exp, Signals s, Options o)
         notes.Add("Managed stack did not reference the scenario runner — likely truncated or release-trimmed.");
     if (o.Runtime == "coreclr" && exp.Category.StartsWith("Runtime") && !s.DotnetCrashReport)
         notes.Add("CoreCLR did not emit a compact crash report for a runtime-fatal scenario.");
+    if (!string.IsNullOrEmpty(o.ArtifactsPath) && o.Runtime == "coreclr" && exp.Category.StartsWith("Runtime") && !s.LegacyCrashReportFile && !s.LifecycleCrashReportFile)
+        notes.Add("No app-private CoreCLR JSON crash report was captured from the artifact directory.");
     if (notes.Count == 0)
         notes.Add("No anomalies detected.");
     return notes.ToArray();
@@ -324,6 +370,7 @@ sealed class Options
     public string Config { get; init; } = "Unknown";
     public string ProcessPath { get; init; } = "";
     public string LogcatPath { get; init; } = "";
+    public string ArtifactsPath { get; init; } = "";
     public string OutPath { get; init; } = "";
     public string DetectedRuntime { get; init; } = "";
 }
@@ -363,6 +410,8 @@ sealed class Signals
     public bool AndroidFatalException { get; init; }
     public bool MonoDroidUnhandled { get; init; }
     public bool DotnetCrashReport { get; init; }
+    public bool LegacyCrashReportFile { get; init; }
+    public bool LifecycleCrashReportFile { get; init; }
     public bool ManagedStackHasRunner { get; init; }
     public string ManagedExceptionType { get; init; } = "";
     public bool CrashNativeKit { get; init; }
