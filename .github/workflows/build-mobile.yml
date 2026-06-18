@@ -589,12 +589,14 @@ jobs:
 
       - name: Upload iOS to TestFlight
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-        uses: apple-actions/upload-testflight-build@v3
+        uses: apple-actions/upload-testflight-build@v4
         with:
           app-path: ${{ steps.ios_release_artifact.outputs.path }}
           issuer-id: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
           api-key-id: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           api-private-key: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}
+          backend: appstore-api
+          wait-for-processing: "false"
 
   maccatalyst:
     name: Mac Catalyst Release
