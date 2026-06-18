@@ -6,7 +6,7 @@ The app is intentionally a polished sample gallery: scenarios are registered in 
 
 ## Prerequisites
 
-- .NET SDK `11.0.100-preview.4.26230.115`
+- .NET SDK `11.0.100-preview.5`
 - .NET MAUI workloads from the matching .NET 11 preview band
 
 ```bash
