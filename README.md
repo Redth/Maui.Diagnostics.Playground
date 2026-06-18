@@ -21,9 +21,49 @@ dotnet build src/Maui.Diagnostics.Playground/Maui.Diagnostics.Playground.csproj 
 dotnet build src/Maui.Diagnostics.Playground/Maui.Diagnostics.Playground.csproj -f net11.0-maccatalyst
 ```
 
+## iOS App Store and TestFlight builds
+
+The shared MAUI app id is `codes.redth.mauidiagnosticsgallery`. Unsigned simulator Release builds do not need Apple signing assets, but device IPAs for App Store, TestFlight, Ad Hoc, or Enterprise distribution must be signed with an Apple distribution certificate and a matching distribution provisioning profile.
+
+For a local signed IPA, install the certificate and provisioning profile in Xcode, then publish with the exact signing identity and provisioning profile name:
+
+```bash
+dotnet publish src/Maui.Diagnostics.Playground/Maui.Diagnostics.Playground.csproj \
+  -c Release \
+  -f net11.0-ios \
+  -r ios-arm64 \
+  -p:ArchiveOnBuild=true \
+  -p:BuildIpa=true \
+  -p:CodesignKey="Apple Distribution: Your Name or Company (TEAMID)" \
+  -p:CodesignProvision="Your iOS Distribution Profile Name"
+```
+
+For GitHub Actions signed IPA artifacts, configure these secrets:
+
+| Secret | Purpose |
+| --- | --- |
+| `IOS_DISTRIBUTION_CERTIFICATE_BASE64` | Base64-encoded `.p12` export of an Apple Distribution certificate plus its private key. |
+| `IOS_DISTRIBUTION_CERTIFICATE_PASSWORD` | Password used when exporting the `.p12`. |
+| `IOS_PROVISIONING_PROFILE_BASE64` | Base64-encoded `.mobileprovision` distribution profile for `codes.redth.mauidiagnosticsgallery`. |
+| `IOS_CODESIGN_KEY` | Optional exact signing identity. If omitted, CI uses the first `Apple Distribution:` identity imported from the `.p12`. |
+
+Create the Apple assets in the Apple Developer portal:
+
+1. Create or reuse an explicit App ID for `codes.redth.mauidiagnosticsgallery`.
+2. Create an Apple Distribution certificate, install it locally, and export it from Keychain Access as a password-protected `.p12`.
+3. Create an App Store provisioning profile for TestFlight/App Store upload, or an Ad Hoc/Enterprise distribution profile for non-store distribution. Do not use a development profile; distribution profiles must have `get-task-allow=false`.
+4. Base64 encode the files for GitHub secrets:
+
+```bash
+base64 -i ios_distribution.p12 | tr -d '\n' | pbcopy
+base64 -i ios_distribution.mobileprovision | tr -d '\n' | pbcopy
+```
+
+The mobile workflow always builds an unsigned iOS simulator Release artifact. On non-pull-request runs, it also publishes a signed `ios-device-release` IPA artifact when the iOS signing secrets are present. Use the `require_ios_distribution_signing` workflow dispatch input to fail fast when those secrets are missing.
+
 ## Android Play Store builds
 
-The Android app id is `codes.redth.mauidiagnosticsgallery`, matching the Play Console package name. The mobile workflow publishes an Android App Bundle and signs it with the configured upload key secrets.
+The Android app id is also `codes.redth.mauidiagnosticsgallery`, matching the shared MAUI `ApplicationId` and Play Console package name. The mobile workflow publishes an Android App Bundle and signs it with the configured upload key secrets.
 
 Android versioning uses the GitHub Actions workflow run number as the default `versionCode`, with `versionName` defaulting to `1.0.<versionCode>`. For manual Play uploads, the workflow dispatch inputs `android_version_code` and `android_version_name` can override those values; `versionCode` must always increase for each Play upload.
 

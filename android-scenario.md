@@ -7,7 +7,7 @@
 
 - **Date**: 2026-06-11
 - **Device**: Pixel 5 · Android 14 · API 34 (serial `0A041FDD400327`)
-- **App**: `dev.redth.maui.diagnostics.playground`
+- **App**: `codes.redth.mauidiagnosticsgallery`
 - **SDK**: .NET `11.0.100-preview.5.26302.115` (Android workload `36.99.0-preview.5.308`)
 - **Matrix cells**: `MauiDiagnosticsUseCoreClr ∈ {false=Mono, true=CoreCLR}` × `Configuration ∈ {Debug, Release}` × 17 scenarios = **68 runs**
 - **Runtime ground truth**: confirmed per cell via `nativeloader` / APK native libs — Mono cells load `libmonosgen-2.0.so`; CoreCLR cells ship `libcoreclr.so` with no `libmonosgen` (both always carry `libmonodroid.so`).

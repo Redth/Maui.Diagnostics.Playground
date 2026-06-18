@@ -1,4 +1,4 @@
-package dev.redth.maui.diagnostics.playground.nativeandroid;
+package codes.redth.mauidiagnosticsgallery.nativeandroid;
 
 public final class CrashNativeKit {
     static {

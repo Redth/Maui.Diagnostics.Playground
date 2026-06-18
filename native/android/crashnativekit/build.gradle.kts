@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "dev.redth.maui.diagnostics.playground.nativeandroid"
+    namespace = "codes.redth.mauidiagnosticsgallery.nativeandroid"
     compileSdk = 36
     ndkVersion = "28.2.13676358"
 

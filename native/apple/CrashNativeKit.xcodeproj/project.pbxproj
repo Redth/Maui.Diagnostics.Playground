@@ -271,7 +271,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.redth.maui.diagnostics.playground.crashnativekit;
+				PRODUCT_BUNDLE_IDENTIFIER = codes.redth.mauidiagnosticsgallery.crashnativekit;
 				PRODUCT_NAME = CrashNativeKit;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -295,7 +295,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.redth.maui.diagnostics.playground.crashnativekit;
+				PRODUCT_BUNDLE_IDENTIFIER = codes.redth.mauidiagnosticsgallery.crashnativekit;
 				PRODUCT_NAME = CrashNativeKit;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
