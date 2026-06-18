@@ -29,6 +29,9 @@ env:
   DOTNET_NOLOGO: "true"
   PROJECT_PATH: src/Maui.Diagnostics.Playground/Maui.Diagnostics.Playground.csproj
   ANDROID_PACKAGE_NAME: codes.redth.mauidiagnosticsgallery
+  SENTRY_ORG: dotnet-maui
+  SENTRY_PROJECT: maui-diagnostics-playground
+  SENTRY_CLI_VERSION: 3.5.1
 
 jobs:
   android:
@@ -87,6 +90,8 @@ jobs:
           -p:MauiDiagnosticsUseNativeProjects=true
           -p:CrashVendor=Sentry
           -p:AndroidPackageFormat=aab
+          -p:AndroidLinkTool=r8
+          -p:AndroidCreateProguardMappingFile=true
           -p:PublishReadyToRun=false
 
       - name: Prepare Android signing
@@ -160,6 +165,8 @@ jobs:
             -p:MauiDiagnosticsUseNativeProjects=true
             -p:CrashVendor=Sentry
             -p:AndroidPackageFormat=aab
+            -p:AndroidLinkTool=r8
+            -p:AndroidCreateProguardMappingFile=true
             -p:ApplicationVersion="$version_code"
             -p:ApplicationDisplayVersion="$version_name"
             -p:PublishReadyToRun=false
@@ -187,14 +194,20 @@ jobs:
           fi
 
           if [ -n "${SENTRY_AUTH_TOKEN:-}" ]; then
+            sentry_proguard_uuid="$(uuidgen | tr '[:upper:]' '[:lower:]')"
+            echo "SENTRY_PROGUARD_UUID=$sentry_proguard_uuid" >> "$GITHUB_ENV"
+
             publish_args+=(
               -p:SentryUploadSymbols=true
+              -p:SentryUploadSources=true
               -p:SentryUploadAndroidProGuardMapping=true
+              -p:SentryProGuardUUID="$sentry_proguard_uuid"
               -p:SentryCreateRelease=true
               -p:SentrySetCommits=true
             )
           elif [ "${PUBLISH_ANDROID_TO_PLAY:-false}" = "true" ]; then
-            echo "::notice::SENTRY_AUTH_TOKEN is not configured; Sentry release and symbol uploads will be skipped."
+            echo "::error::SENTRY_AUTH_TOKEN is required to publish Android releases with Sentry release, symbol, and mobile build uploads."
+            exit 1
           fi
 
           dotnet publish "${publish_args[@]}"
@@ -207,6 +220,118 @@ jobs:
           path: |
             src/Maui.Diagnostics.Playground/bin/Release/net11.0-android/**/*.apk
             src/Maui.Diagnostics.Playground/bin/Release/net11.0-android/**/*.aab
+
+      - name: Upload Android debug files to Sentry
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SENTRY_AUTH_TOKEN:-}" ]; then
+            echo "::error::SENTRY_AUTH_TOKEN is required to upload Android debug files to Sentry."
+            exit 1
+          fi
+
+          search_roots=()
+          for root in \
+            "src/Maui.Diagnostics.Playground/bin/Release/net11.0-android" \
+            "src/Maui.Diagnostics.Playground/obj/Release/net11.0-android"
+          do
+            if [ -d "$root" ]; then
+              search_roots+=("$root")
+            fi
+          done
+
+          if [ "${#search_roots[@]}" -eq 0 ]; then
+            echo "::error::No Android build output directories were found for Sentry debug file upload."
+            exit 1
+          fi
+
+          debug_file_list="$RUNNER_TEMP/android-sentry-debug-files.txt"
+          find "${search_roots[@]}" -type f \( -name '*.pdb' -o -name '*.so' \) ! -name '*.dll.so' | sort -u > "$debug_file_list"
+          debug_file_count="$(wc -l < "$debug_file_list" | tr -d ' ')"
+
+          if [ "$debug_file_count" -eq 0 ]; then
+            echo "::error::No Android PDB or native .so debug files were found for Sentry upload."
+            exit 1
+          fi
+
+          echo "Uploading $debug_file_count Android debug file(s) to Sentry:"
+          sed 's/^/  /' "$debug_file_list"
+          debug_files=()
+          while IFS= read -r debug_file; do
+            debug_files+=("$debug_file")
+          done < "$debug_file_list"
+
+          npx --yes "@sentry/cli@$SENTRY_CLI_VERSION" debug-files upload \
+            --org "$SENTRY_ORG" \
+            --project "$SENTRY_PROJECT" \
+            --type pdb \
+            --type portablepdb \
+            --type elf \
+            --include-sources \
+            --wait-for 300 \
+            "${debug_files[@]}"
+
+      - name: Upload Android ProGuard mapping to Sentry
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SENTRY_AUTH_TOKEN:-}" ]; then
+            echo "::error::SENTRY_AUTH_TOKEN is required to upload Android ProGuard mappings to Sentry."
+            exit 1
+          fi
+
+          if [ -z "${SENTRY_PROGUARD_UUID:-}" ]; then
+            echo "::error::SENTRY_PROGUARD_UUID was not produced by the Android publish step."
+            exit 1
+          fi
+
+          mapping_path=""
+          for candidate in \
+            "src/Maui.Diagnostics.Playground/bin/Release/net11.0-android/mapping.txt" \
+            "src/Maui.Diagnostics.Playground/bin/Release/net11.0-android/publish/mapping.txt"
+          do
+            if [ -f "$candidate" ]; then
+              mapping_path="$candidate"
+              break
+            fi
+          done
+
+          if [ -z "$mapping_path" ]; then
+            mapping_path="$(find src/Maui.Diagnostics.Playground -path '*/Release/net11.0-android/*' -type f -name 'mapping.txt' | sort | sed -n '1p')"
+          fi
+
+          if [ -z "$mapping_path" ]; then
+            echo "::error::No Android ProGuard/R8 mapping.txt file was generated for Sentry upload."
+            exit 1
+          fi
+
+          echo "Uploading Android ProGuard mapping to Sentry: $mapping_path"
+          proguard_upload_output="$RUNNER_TEMP/sentry-proguard-upload.txt"
+          set +e
+          npx --yes "@sentry/cli@$SENTRY_CLI_VERSION" upload-proguard \
+            --org "$SENTRY_ORG" \
+            --project "$SENTRY_PROJECT" \
+            --require-one \
+            --uuid "$SENTRY_PROGUARD_UUID" \
+            "$mapping_path" 2>&1 | tee "$proguard_upload_output"
+          proguard_upload_status="${PIPESTATUS[0]}"
+          set -e
+
+          if [ "$proguard_upload_status" -ne 0 ]; then
+            if grep -qi 'already exists' "$proguard_upload_output"; then
+              echo "::notice::Android ProGuard mapping was already uploaded by the Sentry MSBuild target."
+            else
+              exit "$proguard_upload_status"
+            fi
+          fi
 
       - name: Validate Play Console publishing
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
@@ -246,6 +371,32 @@ jobs:
           artifact_path="$(sed -n '1p' "$artifact_list")"
           echo "Selected Android release artifact: $artifact_path"
           printf 'path=%s\n' "$artifact_path" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Android build to Sentry Size Analysis
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          release_artifact_path="${{ steps.android_release_artifact.outputs.path }}"
+          if [ -z "${SENTRY_AUTH_TOKEN:-}" ]; then
+            echo "::error::SENTRY_AUTH_TOKEN is required to upload Android builds to Sentry Size Analysis."
+            exit 1
+          fi
+
+          npx --yes "@sentry/cli@$SENTRY_CLI_VERSION" build upload \
+            "$release_artifact_path" \
+            --org "$SENTRY_ORG" \
+            --project "$SENTRY_PROJECT" \
+            --build-configuration "Release" \
+            --head-sha "$GITHUB_SHA" \
+            --vcs-provider "github" \
+            --head-repo-name "$GITHUB_REPOSITORY" \
+            --head-ref "${GITHUB_REF_NAME:-main}" \
+            --base-sha "" \
+            --base-ref ""
 
       - name: Publish Android to Play internal testing
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
