@@ -39,7 +39,7 @@ Configure these GitHub Actions secrets before publishing:
 | `ANDROID_KEYSTORE_PASSWORD` | Password for the upload keystore. |
 | `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | Plain JSON key for a Google Play service account with permission to release `codes.redth.mauidiagnosticsgallery`. |
 | `SENTRY_DSN` | DSN embedded into Play Store release builds so the Sentry MAUI SDK can send events. |
-| `SENTRY_AUTH_TOKEN` | Optional Sentry token used to create releases, set commits, and upload Android debug symbols/mapping files. |
+| `SENTRY_AUTH_TOKEN` | Sentry token required for `main` Play Store publishes; creates releases, sets commits, uploads Android debug symbols, source bundles, ProGuard/R8 mappings, and the published Android build to Sentry Size Analysis. |
 
 ## Runtime and vendor switches
 
@@ -73,7 +73,7 @@ On Android, the .NET SDK enables `System.Runtime.CrashReportBeforeSignalChaining
 
 The app includes the Sentry MAUI SDK and reads its settings from `src/Maui.Diagnostics.Playground/appsettings.json`, then overlays ignored `appsettings.local.json` and environment variables with the `MAUI_DIAGNOSTICS_` prefix. The committed appsettings file intentionally leaves `Sentry:Dsn` empty so no real DSN is stored in source control.
 
-Android Play Store builds compile with `CrashVendor=Sentry`; on `main`, the workflow requires the `SENTRY_DSN` secret and writes it to an ignored `appsettings.local.json` before publishing. If `SENTRY_AUTH_TOKEN` is configured, the same build also asks Sentry's MSBuild integration to create the release, set commits, and upload Android symbols/mapping files to `dotnet-maui/maui-diagnostics-playground`.
+Android Play Store builds compile with `CrashVendor=Sentry`; on `main`, the workflow requires the `SENTRY_DSN` secret and writes it to an ignored `appsettings.local.json` before publishing. The workflow also requires `SENTRY_AUTH_TOKEN` so Sentry's MSBuild integration can create the release, set commits, and upload Android symbols, source bundles, and ProGuard/R8 mappings to `dotnet-maui/maui-diagnostics-playground`. The Android publish enables R8 and mapping generation, reuses one generated ProGuard UUID for the app manifest and mapping upload, then runs explicit post-build `sentry-cli` uploads so missing debug files, missing mappings, or failed uploads block the `main` release. After selecting the signed Android publish artifact, CI uploads the same AAB/APK to Sentry Size Analysis with `GITHUB_SHA` as the head SHA and no base SHA so Sentry records it as a `main` base build.
 
 Set the DSN at build/run time with an environment variable that maps to `Sentry:Dsn`:
 
