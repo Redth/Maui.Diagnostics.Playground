@@ -478,6 +478,7 @@ jobs:
           IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
           IOS_CODESIGN_KEY: ${{ secrets.IOS_CODESIGN_KEY }}
           REQUIRE_IOS_DISTRIBUTION_SIGNING: ${{ github.event_name == 'workflow_dispatch' && inputs.require_ios_distribution_signing }}
+          PUBLISH_IOS_TO_TESTFLIGHT: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
         run: |
           set -euo pipefail
 
@@ -487,7 +488,7 @@ jobs:
           [ -n "${IOS_PROVISIONING_PROFILE_BASE64:-}" ] || missing_secrets+=("IOS_PROVISIONING_PROFILE_BASE64")
 
           if [ "${#missing_secrets[@]}" -gt 0 ]; then
-            if [ "${REQUIRE_IOS_DISTRIBUTION_SIGNING:-false}" = "true" ]; then
+            if [ "${REQUIRE_IOS_DISTRIBUTION_SIGNING:-false}" = "true" ] || [ "${PUBLISH_IOS_TO_TESTFLIGHT:-false}" = "true" ]; then
               printf '::error::Missing iOS distribution signing secret(s): %s\n' "${missing_secrets[*]}"
               exit 1
             fi
@@ -551,10 +552,12 @@ jobs:
             exit 1
           fi
 
-          printf 'codesign_key=%s\n' "$codesign_key" >> "$GITHUB_OUTPUT"
-          printf 'codesign_provision=%s\n' "$profile_name" >> "$GITHUB_OUTPUT"
-          printf 'keychain_path=%s\n' "$keychain_path" >> "$GITHUB_OUTPUT"
-          echo "configured=true" >> "$GITHUB_OUTPUT"
+          {
+            printf 'codesign_key=%s\n' "$codesign_key"
+            printf 'codesign_provision=%s\n' "$profile_name"
+            printf 'keychain_path=%s\n' "$keychain_path"
+            echo "configured=true"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Restore iOS device app
         if: steps.ios_signing.outputs.configured == 'true'
@@ -604,6 +607,56 @@ jobs:
           name: ios-device-release
           if-no-files-found: error
           path: src/Maui.Diagnostics.Playground/bin/Release/net11.0-ios/ios-arm64/publish/*.ipa
+
+      - name: Select iOS release artifact
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        id: ios_release_artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          artifact_list="$RUNNER_TEMP/ios-testflight-artifacts.txt"
+          find src/Maui.Diagnostics.Playground/bin/Release/net11.0-ios/ios-arm64/publish -type f -name '*.ipa' | sort > "$artifact_list"
+          artifact_count="$(wc -l < "$artifact_list" | tr -d ' ')"
+
+          if [ "$artifact_count" -ne 1 ]; then
+            printf '::error::Expected exactly one signed iOS IPA for TestFlight upload, found %s.\n' "$artifact_count"
+            sed 's/^/  /' "$artifact_list"
+            exit 1
+          fi
+
+          artifact_path="$(sed -n '1p' "$artifact_list")"
+          echo "Selected iOS release artifact: $artifact_path"
+          printf 'path=%s\n' "$artifact_path" >> "$GITHUB_OUTPUT"
+
+      - name: Validate TestFlight publishing
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          APP_STORE_CONNECT_API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+
+          missing_secrets=()
+          [ -n "${APP_STORE_CONNECT_API_KEY_ID:-}" ] || missing_secrets+=("APP_STORE_CONNECT_API_KEY_ID")
+          [ -n "${APP_STORE_CONNECT_API_ISSUER_ID:-}" ] || missing_secrets+=("APP_STORE_CONNECT_API_ISSUER_ID")
+          [ -n "${APP_STORE_CONNECT_API_PRIVATE_KEY:-}" ] || missing_secrets+=("APP_STORE_CONNECT_API_PRIVATE_KEY")
+
+          if [ "${#missing_secrets[@]}" -gt 0 ]; then
+            printf '::error::Missing App Store Connect secret(s): %s\n' "${missing_secrets[*]}"
+            exit 1
+          fi
+
+      - name: Upload iOS to TestFlight
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: apple-actions/upload-testflight-build@v1
+        with:
+          app-path: ${{ steps.ios_release_artifact.outputs.path }}
+          issuer-id: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          api-key-id: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          api-private-key: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}
 
       - name: Cleanup iOS signing keychain
         if: always() && steps.ios_signing.outputs.keychain_path != ''
