@@ -46,6 +46,9 @@ For GitHub Actions signed IPA artifacts, configure these secrets:
 | `IOS_DISTRIBUTION_CERTIFICATE_PASSWORD` | Password used when exporting the `.p12`. |
 | `IOS_PROVISIONING_PROFILE_BASE64` | Base64-encoded `.mobileprovision` distribution profile for `codes.redth.mauidiagnosticsgallery`. |
 | `IOS_CODESIGN_KEY` | Optional exact signing identity. If omitted, CI uses the first `Apple Distribution:` identity imported from the `.p12`. |
+| `APP_STORE_CONNECT_API_KEY_ID` | App Store Connect API key ID used for TestFlight uploads. |
+| `APP_STORE_CONNECT_API_ISSUER_ID` | App Store Connect issuer ID for the API key. |
+| `APP_STORE_CONNECT_API_PRIVATE_KEY` | Contents of the App Store Connect API key `.p8` file. |
 
 Create the Apple assets in the Apple Developer portal:
 
@@ -59,7 +62,7 @@ base64 -i ios_distribution.p12 | tr -d '\n' | pbcopy
 base64 -i ios_distribution.mobileprovision | tr -d '\n' | pbcopy
 ```
 
-The mobile workflow always builds an unsigned iOS simulator Release artifact. On non-pull-request runs, it also publishes a signed `ios-device-release` IPA artifact when the iOS signing secrets are present. Use the `require_ios_distribution_signing` workflow dispatch input to fail fast when those secrets are missing.
+The mobile workflow always builds an unsigned iOS simulator Release artifact. On non-pull-request runs, it also publishes a signed `ios-device-release` IPA artifact when the iOS signing secrets are present. Successful iOS builds on `main` upload that signed IPA to TestFlight, so `main` builds require both the iOS distribution signing secrets and the App Store Connect API secrets. Use the `require_ios_distribution_signing` workflow dispatch input to fail fast when signing secrets are missing on other refs.
 
 ## Android Play Store builds
 
