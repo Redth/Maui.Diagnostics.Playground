@@ -20,6 +20,19 @@ on:
         description: Optional Android versionName override; defaults to 1.0.<versionCode>
         required: false
         type: string
+      require_ios_distribution_signing:
+        description: Fail iOS if distribution signing secrets are not configured
+        required: false
+        default: false
+        type: boolean
+      ios_version_code:
+        description: Optional iOS CFBundleVersion override; defaults to the workflow run number
+        required: false
+        type: string
+      ios_version_name:
+        description: Optional iOS CFBundleShortVersionString override; defaults to 1.0.<versionCode>
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -29,6 +42,7 @@ env:
   DOTNET_NOLOGO: "true"
   PROJECT_PATH: src/Maui.Diagnostics.Playground/Maui.Diagnostics.Playground.csproj
   ANDROID_PACKAGE_NAME: codes.redth.mauidiagnosticsgallery
+  IOS_BUNDLE_ID: codes.redth.mauidiagnosticsgallery
   SENTRY_ORG: dotnet-maui
   SENTRY_PROJECT: maui-diagnostics-playground
   SENTRY_CLI_VERSION: 3.5.1
@@ -409,7 +423,7 @@ jobs:
           status: completed
 
   ios:
-    name: iOS Simulator Release
+    name: iOS Release
     runs-on: macos-26
 
     steps:
@@ -453,6 +467,150 @@ jobs:
           name: ios-simulator-release
           if-no-files-found: error
           path: src/Maui.Diagnostics.Playground/bin/Release/net11.0-ios/iossimulator-x64/**/*.app
+
+      - name: Prepare iOS distribution signing
+        id: ios_signing
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          IOS_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_BASE64 }}
+          IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          IOS_CODESIGN_KEY: ${{ secrets.IOS_CODESIGN_KEY }}
+          REQUIRE_IOS_DISTRIBUTION_SIGNING: ${{ github.event_name == 'workflow_dispatch' && inputs.require_ios_distribution_signing }}
+        run: |
+          set -euo pipefail
+
+          missing_secrets=()
+          [ -n "${IOS_DISTRIBUTION_CERTIFICATE_BASE64:-}" ] || missing_secrets+=("IOS_DISTRIBUTION_CERTIFICATE_BASE64")
+          [ -n "${IOS_DISTRIBUTION_CERTIFICATE_PASSWORD:-}" ] || missing_secrets+=("IOS_DISTRIBUTION_CERTIFICATE_PASSWORD")
+          [ -n "${IOS_PROVISIONING_PROFILE_BASE64:-}" ] || missing_secrets+=("IOS_PROVISIONING_PROFILE_BASE64")
+
+          if [ "${#missing_secrets[@]}" -gt 0 ]; then
+            if [ "${REQUIRE_IOS_DISTRIBUTION_SIGNING:-false}" = "true" ]; then
+              printf '::error::Missing iOS distribution signing secret(s): %s\n' "${missing_secrets[*]}"
+              exit 1
+            fi
+
+            printf '::warning::Missing iOS distribution signing secret(s): %s; skipping signed iOS IPA publish.\n' "${missing_secrets[*]}"
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          certificate_path="$RUNNER_TEMP/ios-distribution-certificate.p12"
+          profile_path="$RUNNER_TEMP/ios-distribution-profile.mobileprovision"
+          profile_plist_path="$RUNNER_TEMP/ios-distribution-profile.plist"
+          keychain_path="$RUNNER_TEMP/ios-signing.keychain-db"
+          keychain_password="$(uuidgen)"
+
+          printf '%s' "$IOS_DISTRIBUTION_CERTIFICATE_BASE64" | base64 --decode > "$certificate_path"
+          printf '%s' "$IOS_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$profile_path"
+
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          security import "$certificate_path" -P "$IOS_DISTRIBUTION_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain_path"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain_path"
+
+          existing_keychains=()
+          while IFS= read -r keychain; do
+            keychain="${keychain//\"/}"
+            [ -n "$keychain" ] && existing_keychains+=("$keychain")
+          done < <(security list-keychains -d user)
+          security list-keychains -d user -s "$keychain_path" "${existing_keychains[@]}"
+
+          security cms -D -i "$profile_path" > "$profile_plist_path"
+          profile_uuid="$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$profile_plist_path")"
+          profile_name="$(/usr/libexec/PlistBuddy -c 'Print :Name' "$profile_plist_path")"
+          profile_app_id="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$profile_plist_path")"
+          get_task_allow="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:get-task-allow' "$profile_plist_path" 2>/dev/null || echo false)"
+
+          case "$profile_app_id" in
+            *."$IOS_BUNDLE_ID"|*".*") ;;
+            *)
+              printf '::error::iOS provisioning profile app identifier %s does not match bundle id %s.\n' "$profile_app_id" "$IOS_BUNDLE_ID"
+              exit 1
+              ;;
+          esac
+
+          if [ "$get_task_allow" = "true" ]; then
+            echo "::error::iOS provisioning profile has get-task-allow=true. Use an App Store, Ad Hoc, or Enterprise distribution profile, not a development profile."
+            exit 1
+          fi
+
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$profile_path" "$HOME/Library/MobileDevice/Provisioning Profiles/$profile_uuid.mobileprovision"
+
+          codesign_key="${IOS_CODESIGN_KEY:-}"
+          if [ -z "$codesign_key" ]; then
+            codesign_key="$(security find-identity -v -p codesigning "$keychain_path" | sed -n 's/^.*"\(Apple Distribution:[^"]*\)".*$/\1/p' | sed -n '1p')"
+          fi
+
+          if [ -z "$codesign_key" ]; then
+            echo "::error::No Apple Distribution signing identity was found in the imported certificate. Set IOS_CODESIGN_KEY if the identity name is non-standard."
+            exit 1
+          fi
+
+          printf 'codesign_key=%s\n' "$codesign_key" >> "$GITHUB_OUTPUT"
+          printf 'codesign_provision=%s\n' "$profile_name" >> "$GITHUB_OUTPUT"
+          printf 'keychain_path=%s\n' "$keychain_path" >> "$GITHUB_OUTPUT"
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Restore iOS device app
+        if: steps.ios_signing.outputs.configured == 'true'
+        run: dotnet restore "$PROJECT_PATH" -p:TargetFramework=net11.0-ios -r ios-arm64
+
+      - name: Publish signed iOS IPA
+        if: steps.ios_signing.outputs.configured == 'true'
+        shell: bash
+        env:
+          IOS_CODESIGN_KEY: ${{ steps.ios_signing.outputs.codesign_key }}
+          IOS_CODESIGN_PROVISION: ${{ steps.ios_signing.outputs.codesign_provision }}
+          IOS_VERSION_CODE: ${{ inputs.ios_version_code }}
+          IOS_VERSION_NAME: ${{ inputs.ios_version_name }}
+        run: |
+          set -euo pipefail
+
+          version_code="${IOS_VERSION_CODE:-$GITHUB_RUN_NUMBER}"
+          version_name="${IOS_VERSION_NAME:-1.0.$version_code}"
+
+          if ! [[ "$version_code" =~ ^[1-9][0-9]*$ ]]; then
+            echo "::error::iOS CFBundleVersion must be a positive integer."
+            exit 1
+          fi
+
+          echo "iOS CFBundleShortVersionString=$version_name CFBundleVersion=$version_code"
+
+          dotnet publish "$PROJECT_PATH" \
+            -c Release \
+            -f net11.0-ios \
+            -r ios-arm64 \
+            --no-restore \
+            -p:MauiDiagnosticsUseCoreClr=true \
+            -p:MauiDiagnosticsUseNativeProjects=true \
+            -p:CrashVendor=None \
+            -p:ApplicationVersion="$version_code" \
+            -p:ApplicationDisplayVersion="$version_name" \
+            -p:ArchiveOnBuild=true \
+            -p:BuildIpa=true \
+            -p:CodesignKey="$IOS_CODESIGN_KEY" \
+            -p:CodesignProvision="$IOS_CODESIGN_PROVISION" \
+            -p:ContinuousIntegrationBuild=true
+
+      - name: Upload signed iOS IPA artifact
+        if: steps.ios_signing.outputs.configured == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-device-release
+          if-no-files-found: error
+          path: src/Maui.Diagnostics.Playground/bin/Release/net11.0-ios/ios-arm64/publish/*.ipa
+
+      - name: Cleanup iOS signing keychain
+        if: always() && steps.ios_signing.outputs.keychain_path != ''
+        shell: bash
+        env:
+          IOS_KEYCHAIN_PATH: ${{ steps.ios_signing.outputs.keychain_path }}
+        run: security delete-keychain "$IOS_KEYCHAIN_PATH" || true
 
   maccatalyst:
     name: Mac Catalyst Release

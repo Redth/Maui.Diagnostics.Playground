@@ -24,7 +24,7 @@
 		<ApplicationTitle>MAUI Diagnostics Playground</ApplicationTitle>
 
 		<!-- App Identifier -->
-		<ApplicationId>dev.redth.maui.diagnostics.playground</ApplicationId>
+		<ApplicationId>codes.redth.mauidiagnosticsgallery</ApplicationId>
 
 		<!-- Versions -->
 		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>

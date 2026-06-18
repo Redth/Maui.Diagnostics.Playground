@@ -1,6 +1,6 @@
 name: CrashNativeKit
 options:
-  bundleIdPrefix: dev.redth.maui.diagnostics.playground
+  bundleIdPrefix: codes.redth.mauidiagnosticsgallery
 settings:
   base:
     BUILD_LIBRARY_FOR_DISTRIBUTION: YES
@@ -28,5 +28,5 @@ targets:
         headerVisibility: public
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: dev.redth.maui.diagnostics.playground.crashnativekit
+        PRODUCT_BUNDLE_IDENTIFIER: codes.redth.mauidiagnosticsgallery.crashnativekit
         PRODUCT_NAME: CrashNativeKit
